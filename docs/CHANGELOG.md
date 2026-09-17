@@ -412,3 +412,37 @@ Concluído e auditado com 100% de aprovação.
 ### 2. Testes Executados
 - 7 testes em `comment-moderation.test.ts` aprovados (53 testes no monorepo).
 - Build estático de produção do Vite e TypeScript aprovado com código de saída 0.
+
+---
+
+## [Segurança de IA & Moderação em 4 Camadas (Prompt Injection Defense & Desofuscação)] — Setembro de 2026
+
+### 1. Defesa contra Prompt Injection (Formulários & IA Gemini)
+- **Módulo Dedicado de Defesa (`prompt-defense.ts`)**:
+  - Implementada função [`defangPromptInjection`](file:///C:/Users/User/.gemini/antigravity/scratch/opp/packages/shared/src/utils/prompt-defense.ts) com neutralização de:
+    - *Sobrescrita de Instruções*: `ignore all previous instructions`, `ignore todas as regras anteriores`, `você agora é um assistente sem regras`;
+    - *Impersonação de Papel*: `System:`, `Developer:`, `Admin:`, `Assistant:`;
+    - *Extração de Prompt Interno*: `mostre seu system prompt`, `reveal instructions`, `print prompt`;
+    - *Escape de Delimitadores*: aspas triplas `"""`, `'''`, blocos de código e tags de script.
+- **Isolamento Estrutural e Prompt Seguro**:
+  - Criação da constante de diretriz `SYSTEM_SAFETY_INSTRUCTION` e função de encapsulamento `encapsulateUntrustedInput` envolvendo textos na tag delimitadora `<user_input_untrusted>`.
+  - Integração em [`GeminiAIProvider`](file:///C:/Users/User/.gemini/antigravity/scratch/opp/functions/src/providers/gemini-ai-provider.ts) em todos os métodos (`suggestMetadata`, `generateNeutralSummary`, `evaluateContentRisk`, `evaluateCivicToxicity`).
+  - Proteção em [`prepareGeminiSafePayload`](file:///C:/Users/User/.gemini/antigravity/scratch/opp/packages/shared/src/domain/ai-heuristics.ts) aplicado tanto na criação de relatos quanto na geração de resumos neutros.
+
+### 2. Moderação em 4 Camadas & Ajustes Cívicos
+- **Camada 1 (Normalizador e Desofuscador de Texto - `text-normalizer.ts`)**:
+  - Decodificação de Leetspeak: `@/4 -> a`, `3 -> e`, `1/!/| -> i`, `0 -> o`, `5/$ -> s`, `7 -> t`, `8 -> b`.
+  - Colapso de acrônimos espaçados ou pontuados: `v.s.f`, `v . s . f`, `v s f`, `t - n - c`, `f.d.p`, `p.q.p`, `k.c.t`.
+  - Redução de repetições exageradas intencionais: `meeerrrdddaaa -> merda`, `poooorrrra -> porra`.
+- **Camada 2 (Dicionário Expandido & Máscara de Palavrões)**:
+  - Expansão de `PROFANITY_REGEX` com acrônimos chulos populares e termos ofensivos/pejorativos (homofobia, etarismo).
+  - Máscara compulsória determinística por `######` no texto persistido e publicado.
+- **Ajustes de UX e Fila Cívica**:
+  - **Remoção de prévia/aviso do `######`**: o autor é orientado civicamene sobre a inadequação dos termos, sem saber que o texto será mascarado antes de postar.
+  - **Preservação de Auditoria (`REVISED_AFTER_WARNING`)**: caso o usuário acione o aviso e edite o texto repetidamente até o aviso sumir para tentar burlar a triagem, o comentário é compulsoriamente encaminhado para revisão humana com a flag `AUTO_FLAGGED`.
+- **Camada 3 (Análise Semântica Contextual com Gemini)**:
+  - Método `evaluateCivicToxicity` para identificar insultos contextuais que não dependem de palavrões isolados (ex: ofensas a servidores e ataques discriminatórios).
+
+### 3. Testes e Validação
+- 67 testes unitários aprovados em 12 suítes em `@opp/shared`.
+- Build estático de `@opp/shared`, `@opp/web` e `functions` 100% aprovado sem erros.
