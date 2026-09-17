@@ -36,7 +36,8 @@ opp/
 │   ├── storage.rules          # Regras de isolamento de anexos e evidências
 │   └── firestore.indexes.json # Índices compostos otimizados
 ├── docs/
-│   └── CHANGELOG.md           # Auditoria contínua por fase
+│   ├── CHANGELOG.md           # Auditoria contínua por fase
+│   └── ROADMAP.md             # Oportunidades e melhorias futuras
 └── firebase.json              # Configuração completa do Firebase Emulator Suite
 ```
 
