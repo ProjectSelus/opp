@@ -41,6 +41,23 @@ describe('Comment Moderation and Discussion Rules (AC-03 & Seção 16/23)', () =
     expect(evalResult.riskFlags).toContain('PROFANITY_DETECTED');
   });
 
+  it('should mask acronyms and slurs like vsf, tnc and viado', () => {
+    const textWithSlurs = 'vsf tnc velho viado';
+    const evalResult = evaluateCommentRisk(textWithSlurs);
+    expect(evalResult.sanitizedText).toBe('###### ###### velho ######');
+    expect(evalResult.maskedProfanitiesCount).toBe(3);
+  });
+
+  it('should flag comment as AUTO_FLAGGED if author had warning intervention even after editing', () => {
+    // Autor digitou algo que gerou aviso, depois editou para um texto limpo
+    const cleanEditedText = 'Agora estou relatando educadamente que o poste da esquina está quebrado.';
+    const evalResult = evaluateCommentRisk(cleanEditedText, true);
+
+    expect(evalResult.moderationState).toBe('AUTO_FLAGGED');
+    expect(evalResult.requiresHumanReview).toBe(true);
+    expect(evalResult.riskFlags).toContain('REVISED_AFTER_WARNING');
+  });
+
   it('should generate educational warnings for author before posting', () => {
     const check = checkCommentForAuthorWarning('Que merda de prefeito ladrão, vou quebrar a cara dele!');
     expect(check.hasWarnings).toBe(true);

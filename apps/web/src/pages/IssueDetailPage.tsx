@@ -71,6 +71,7 @@ export const IssueDetailPage: React.FC = () => {
   const [reportedSuccess, setReportedSuccess] = useState<string | null>(null);
   const [commentWarning, setCommentWarning] = useState<AuthorCommentWarningCheck | null>(null);
   const [commentSuccessFeedback, setCommentSuccessFeedback] = useState<string | null>(null);
+  const [hasEverTriggeredWarning, setHasEverTriggeredWarning] = useState(false);
 
   const [commentsList, setCommentsList] = useState<CommentItem[]>([
     {
@@ -155,17 +156,21 @@ export const IssueDetailPage: React.FC = () => {
     const warningCheck = checkCommentForAuthorWarning(newComment);
 
     if (warningCheck.hasWarnings) {
+      // Registra que este rascunho acionou intervenção preventiva de aviso
+      setHasEverTriggeredWarning(true);
       // Abre o aviso interativo para o autor: opção de editar ou postar mesmo assim
       setCommentWarning(warningCheck);
       return;
     }
 
-    executePostComment(newComment, false);
+    // Se não há avisos ativos, mas o autor já havia acionado aviso anteriormente e editou,
+    // enviamos com hadWarningIntervention = hasEverTriggeredWarning (cai no AUTO_FLAGGED)
+    executePostComment(newComment, hasEverTriggeredWarning);
   };
 
-  const executePostComment = (textToPost: string, wasForced = false) => {
-    // Avalia o risco e substitui palavrões por ######
-    const evalResult = evaluateCommentRisk(textToPost, wasForced);
+  const executePostComment = (textToPost: string, hadWarningIntervention = false) => {
+    // Avalia o risco e substitui palavrões por ###### (sem avisar antes)
+    const evalResult = evaluateCommentRisk(textToPost, hadWarningIntervention);
 
     const added: CommentItem = {
       id: `c-${Date.now()}`,
@@ -180,11 +185,10 @@ export const IssueDetailPage: React.FC = () => {
     setNewComment('');
     setReplyingTo(null);
     setCommentWarning(null);
+    setHasEverTriggeredWarning(false);
 
-    if (evalResult.hasProfanity) {
-      setCommentSuccessFeedback('Comentário publicado! Palavrões foram compulsoriamente substituídos por "######".');
-    } else if (evalResult.moderationState === 'AUTO_FLAGGED') {
-      setCommentSuccessFeedback('Comentário registrado e submetido para auditoria da moderação cívica.');
+    if (evalResult.moderationState === 'AUTO_FLAGGED') {
+      setCommentSuccessFeedback('Comentário registrado e encaminhado para revisão da equipe de moderação cívica.');
     } else {
       setCommentSuccessFeedback('Comentário publicado com sucesso na discussão pública!');
     }
@@ -962,26 +966,6 @@ export const IssueDetailPage: React.FC = () => {
                   </p>
                 </div>
               ))}
-            </div>
-
-            {/* Alerta específico de substituição por ###### */}
-            {commentWarning.hasProfanity && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong>Regra de Linguagem de Baixo Calão:</strong> Mesmo se você optar por postar, os termos inadequados serão compulsoriamente substituídos por <code className="bg-rose-200 px-1 py-0.5 rounded font-mono font-bold text-rose-900">######</code>.
-                </div>
-              </div>
-            )}
-
-            {/* Prévia do Comentário */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 block">
-                Prévia de como seu comentário será visualizado na discussão pública:
-              </label>
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-800 italic leading-relaxed">
-                "{commentWarning.previewText}"
-              </div>
             </div>
 
             {/* Ações: Editar ou Postar Mesmo Assim */}

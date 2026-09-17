@@ -12,7 +12,7 @@ export const VIOLENCE_THREAT_REGEX = /\b(matar|morte|agredir|porrada|bater|tiro|
 export const MINOR_SENSITIVE_REGEX = /\b(crian[cç]a|menor\s+de\s+idade|adolescente|estupro|pedofilia)\b/i;
 
 // Padrão de linguagem de baixo calão / termos chulos (PT-BR)
-export const PROFANITY_REGEX = /\b(merda|merdas|porra|porras|caralho|caralhos|caralha|puta|putas|puto|putos|putaria|bosta|bostas|bostinha|cacete|cacetes|arrombado|arrombados|arrombada|arrombadas|fdp|filho\s+da\s+puta|filha\s+da\s+puta|foda|foder|fodeu|fudeu|fudido|fodido|fudida|fodida|cu|cuz[aã]o|cuz[oõ]es|vsf|vtnc|vai\s+se\s+foder|tomar\s+no\s+cu|tmnc|pqp|babaca|babacas|desgra[cç]ado|desgra[cç]ada|desgra[cç]a|vadia|vadias)\b/gi;
+export const PROFANITY_REGEX = /\b(merda|merdas|porra|porras|caralho|caralhos|caralha|puta|putas|puto|putos|putaria|bosta|bostas|bostinha|cacete|cacetes|arrombado|arrombados|arrombada|arrombadas|fdp|filho\s+da\s+puta|filha\s+da\s+puta|foda|foder|fodeu|fudeu|fudido|fodido|fudida|fodida|cu|cuz[aã]o|cuz[oõ]es|vsf|vtnc|tnc|tmnc|vai\s+se\s+foder|tomar\s+no\s+cu|pqp|babaca|babacas|desgra[cç]ado|desgra[cç]ada|desgra[cç]a|vadia|vadias|viado|viados|veado|veados|bicha|bichas)\b/gi;
 
 /**
  * Substitui palavras de baixo calão por caracteres ###### (preservando o restante do texto)
@@ -71,13 +71,13 @@ export function checkCommentForAuthorWarning(rawText: string): AuthorCommentWarn
   const warnings: CommentRiskNotice[] = [];
   let hasHighRisk = false;
 
-  // 1. Linguagem de baixo calão / palavrão
+  // 1. Linguagem de baixo calão / palavrão (sem avisar sobre máscara #### antecipadamente)
   if (profanityResult.hasProfanity) {
     warnings.push({
       category: 'PROFANITY',
-      title: 'Linguagem de Baixo Calão Detectada',
-      description: `Foram identificados termos inadequados no texto (${profanityResult.foundWords.length} ocorrência(s)).`,
-      recommendation: 'Recomendamos manter o debate cívico respeitoso. Se optar por postar mesmo assim, os termos serão obrigatoriamente substituídos por "######".'
+      title: 'Linguagem Inadequada Detectada',
+      description: `Foram identificados termos desrespeitosos ou de baixo calão no comentário (${profanityResult.foundWords.length} ocorrência(s)).`,
+      recommendation: 'Recomendamos manter o debate cívico respeitoso para que sua manifestação tenha legitimidade e impacto público.'
     });
   }
 
@@ -137,9 +137,11 @@ export function checkCommentForAuthorWarning(rawText: string): AuthorCommentWarn
 
 /**
  * Avalia riscos de um comentário antes da persistência.
- * Substitui termos de baixo calão por ###### deterministamente.
+ * Substitui termos de baixo calão por ###### deterministamente no texto sanitizado final.
+ * Se o autor passou por intervenção de aviso prévio (mesmo que tenha editado até o aviso sumir),
+ * marca o comentário para revisão humana (AUTO_FLAGGED) com a flag REVISED_AFTER_WARNING.
  */
-export function evaluateCommentRisk(rawText: string, _authorChoseToPostAnyway = false): CommentEvaluationResult {
+export function evaluateCommentRisk(rawText: string, hadWarningIntervention = false): CommentEvaluationResult {
   const sanitization = sanitizeText(rawText);
   const profanityResult = maskProfanity(sanitization.sanitizedText);
   const riskFlags: string[] = [];
@@ -164,18 +166,26 @@ export function evaluateCommentRisk(rawText: string, _authorChoseToPostAnyway = 
     riskFlags.push('SENSITIVE_MINOR_DATA');
   }
 
+  if (hadWarningIntervention) {
+    riskFlags.push('REVISED_AFTER_WARNING');
+  }
+
+  // Encaminha para revisão humana (AUTO_FLAGGED) se contiver riscos graves ou se houve intervenção prévia
   const hasSevereRisk = riskFlags.some(f => 
     f === 'NOMINAL_CRIME_ACCUSATION' || 
     f === 'VIOLENCE_OR_THREAT' || 
     f === 'SENSITIVE_MINOR_DATA' ||
+    f === 'REVISED_AFTER_WARNING' ||
     f.startsWith('PII_')
   );
 
+  const moderationState = (hasSevereRisk || hadWarningIntervention) ? 'AUTO_FLAGGED' : 'APPROVED';
+
   return {
     sanitizedText: profanityResult.maskedText,
-    moderationState: hasSevereRisk ? 'AUTO_FLAGGED' : 'APPROVED',
+    moderationState,
     riskFlags,
-    requiresHumanReview: hasSevereRisk,
+    requiresHumanReview: moderationState === 'AUTO_FLAGGED',
     hasProfanity: profanityResult.hasProfanity,
     maskedProfanitiesCount: profanityResult.foundWords.length
   };
