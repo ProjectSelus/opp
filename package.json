@@ -1,0 +1,28 @@
+{
+  "name": "opp-monorepo",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Ouvidoria Pública Popular - Plataforma Cívica Issue-Centric",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "functions"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "web:dev": "npm run dev --workspace=apps/web",
+    "functions:build": "npm run build --workspace=functions",
+    "emulators:start": "firebase emulators:start"
+  },
+  "keywords": [
+    "ouvidoria",
+    "civic-tech",
+    "tecnologia-social",
+    "governo-aberto",
+    "firebase"
+  ],
+  "author": "Ouvidoria Pública Popular",
+  "license": "Apache-2.0"
+}

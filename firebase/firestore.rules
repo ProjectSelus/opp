@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+
+    function isModerator() {
+      return hasRole('moderator') || hasRole('admin');
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // 1. Municípios (Leitura pública, escrita apenas admin)
+    match /municipalities/{municipalityId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 2. Feature Flags (Leitura pública para configuração da UI, escrita admin)
+    match /featureFlags/{flagId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 3. Órgãos Públicos e Canais (Leitura pública, escrita admin)
+    match /agencies/{agencyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 4. Perfil público mínimo de usuário
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'claims']);
+      allow delete: if false;
+    }
+
+    // 5. Dados Privados e Sensíveis do Usuário (LGPD by design: isolado do público)
+    match /usersPrivate/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
+    // 6. Problemas Públicos (Issues) - Aggregate Root
+    match /issues/{issueId} {
+      // Público pode ler issues abertos/aprovados e não ocultos
+      allow read: if resource.data.moderationState == 'APPROVED' 
+                  && resource.data.status != 'HIDDEN'
+                  || isModerator()
+                  || (isAuthenticated() && resource.data.createdBy == request.auth.uid);
+
+      // Criação inicial é permitida para cidadão autenticado (status inicial deve ser DRAFT ou UNDER_MODERATION)
+      allow create: if isAuthenticated() 
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.moderationState in ['DRAFT', 'UNDER_MODERATION'];
+
+      // Atualizações de status e contadores de manifestação são feitas exclusivamente via backend (Cloud Functions)
+      // Usuário autor só pode editar campos básicos em status DRAFT
+      allow update: if (isOwner(resource.data.createdBy) && resource.data.status == 'DRAFT')
+                    || isModerator();
+
+      allow delete: if false; // Issues nunca são apagados diretamente; utilizam status ARCHIVED ou HIDDEN
+
+      // Subcoleção: Comentários Comunitários
+      match /comments/{commentId} {
+        allow read: if resource.data.moderationState == 'APPROVED' || isModerator() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+        allow update: if isOwner(resource.data.userId) || isModerator();
+        allow delete: if isModerator();
+      }
+
+      // Subcoleção: Evidências públicas moderadas
+      match /evidences/{evidenceId} {
+        allow read: if resource.data.moderationState == 'APPROVED' || isModerator() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isModerator();
+      }
+
+      // Subcoleção: Seguidores (Acompanhamento do issue)
+      match /followers/{uid} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // 7. Manifestações Formais Individuais (Privadas por padrão - AC-11)
+    // Cidadão só lê e cria suas próprias manifestações. Público geral NÃO tem acesso.
+    match /formalManifestations/{manifestationId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isModerator();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Atualizações de despacho/status são controladas pelo backend (Cloud Functions)
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid && resource.data.status in ['DRAFT', 'SUBMITTED', 'READY_FOR_CONFIRMATION']) || isModerator();
+      allow delete: if false; // Fato histórico preservado
+    }
+
+    // 8. Despachos Técnicos e Agrupamentos (Apenas backend e moderação/administração)
+    match /dispatches/{dispatchId} {
+      allow read, write: if isModerator();
+
+      match /items/{itemId} {
+        allow read, write: if isModerator();
+      }
+    }
+
+    // 9. Respostas Institucionais Brutas (Privadas para triagem/sanitização)
+    match /agencyResponses/{responseId} {
+      allow read, write: if isModerator();
+    }
+
+    // 10. Respostas Institucionais Públicas (Sanitizadas e autorizadas)
+    match /publicAgencyResponses/{responseId} {
+      allow read: if true;
+      allow write: if isModerator();
+    }
+
+    // 11. Casos de Moderação (Fila restrita a moderadores e admin)
+    match /moderationCases/{caseId} {
+      allow read, write: if isModerator();
+    }
+
+    // 12. Notificações do Cidadão
+    match /notifications/{notificationId} {
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, delete: if isModerator();
+    }
+
+    // 13. Eventos de Auditoria (Append-only absoluto, imutável, criado pelo backend)
+    match /auditEvents/{eventId} {
+      allow read: if hasRole('auditor') || isAdmin();
+      allow create: if isModerator(); // backend com service account ou custom claims
+      allow update, delete: if false; // Imutabilidade de auditoria
+    }
+
+    // 14. Threads de e-mail (Mapeamento interno de transporte)
+    match /emailThreads/{threadId} {
+      allow read, write: if isModerator();
+    }
+  }
+}

@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-slate-800 bg-slate-50 font-sans;
+  }
+}
+
+.civic-gradient {
+  background: linear-gradient(135deg, #0F2942 0%, #1A365D 60%, #0F3A5D 100%);
+}
+
+.hero-overlay {
+  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.15), transparent 50%);
+}

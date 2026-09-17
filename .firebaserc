@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "opp-local-dev",
+    "development": "opp-dev-municipio",
+    "staging": "opp-staging",
+    "production": "opp-prod"
+  }
+}

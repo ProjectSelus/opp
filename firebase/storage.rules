@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isModerator() {
+      return isAuthenticated() && (request.auth.token.role == 'moderator' || request.auth.token.role == 'admin');
+    }
+
+    function isValidImageOrPdf() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)') ||
+             request.resource.contentType == 'application/pdf';
+    }
+
+    function isUnderMaxSize(maxMegabytes) {
+      return request.resource.size < maxMegabytes * 1024 * 1024;
+    }
+
+    // Arquivos privados originais de manifestações / evidências (máx 10MB)
+    match /users/{userId}/evidence/{fileName} {
+      allow read: if isOwner(userId) || isModerator();
+      allow write: if isOwner(userId) && isValidImageOrPdf() && isUnderMaxSize(10);
+    }
+
+    // Documentos formais e comprovantes de despacho gerados pelo backend (PDF)
+    match /dispatches/{dispatchId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isModerator();
+    }
+
+    // Evidências e anexos sanitizados/aprovados para exibição pública (máx 5MB)
+    match /public/issues/{issueId}/{fileName} {
+      allow read: if true;
+      allow write: if isModerator();
+    }
+  }
+}
