@@ -391,16 +391,24 @@ Concluído e auditado com 100% de aprovação.
 
 ---
 
-## [Resumo Geral de Conformidade — Fases 1 a 10 Concluídas]
+## [Melhoria Contínua: Moderação Cívica Interativa & Máscara de Baixo Calão] — Setembro de 2026
 
-A plataforma **OPP — Ouvidoria Pública Popular (Versão 3.0 — Setembro de 2026)** está **100% implementada, testada e operacional**:
-1. **Fase 1 (Fundação)**: Monorepo workspaces, regras do Firestore (LGPD), Storage rules, Design System V2.
-2. **Fase 2 (Domínio Issue-Centric)**: Aggregate Root `Issue`, unificação/divisão AC-12, auditoria append-only.
-3. **Fase 3 (Busca-First)**: Motor de similaridade multi-critério, autocomplete AC-01, prevenção não-bloqueante AC-02.
-4. **Fase 4 (Discussão Comunitária)**: Comentários em árvore, moderação e isolamento estrito de despacho AC-03.
-5. **Fase 5 (Manifestações Formais)**: Códigos hierárquicos `MF-xxxxx`, hash SHA-256, segregação LGPD AC-05.
-6. **Fase 6 (IA Assistiva com Gemini)**: Sanitização prévia obrigatória (15.2), sugestões não soberanas, fallback determinístico offline AC-10.
-7. **Fase 7 (Órgãos e Roteamento)**: Motor de atribuição com pesos, bloqueio rigoroso de `UNVERIFIED` AC-07, portal de transparência.
-8. **Fase 8 (Dispatch / E-mail)**: Agrupamento em lote único AC-06, chave determinística de idempotência, cópia ao cidadão AC-08, sandbox resiliente.
-9. **Fase 9 (Resposta do Órgão & Avaliação Cidadã)**: Escrutínio deliberativo popular com quórum e consenso qualificado (Seção 22).
-10. **Fase 10 (Painel do Moderador Cívico)**: Governança, verificação de canais AC-07, fusão assistida AC-12 e moderação transparente.
+### 1. Entregas Realizadas
+- **Detecção e Substituição Compulsória de Baixo Calão (`######`)**:
+  - `PROFANITY_REGEX` e função determinística `maskProfanity` em [`packages/shared/src/domain/comment-moderation.ts`](file:///C:/Users/User/.gemini/antigravity/scratch/opp/packages/shared/src/domain/comment-moderation.ts).
+  - Qualquer termo de baixo calão é compulsoriamente substituído pela sequência `######` caso o autor decida postar.
+- **Função de Aviso Prévio Cívico ao Autor (`checkCommentForAuthorWarning`)**:
+  - Em vez de submeter silenciosamente para `AUTO_FLAGGED`, o sistema analisa os gatilhos em tempo real antes do envio:
+    - *Linguagem de Baixo Calão* (`PROFANITY`);
+    - *Acusação Nominal de Crime sem decisão judicial* (`CRIME_ACCUSATION`);
+    - *Menção a Violência ou Intimidação* (`VIOLENCE_THREAT`);
+    - *Menção a Menores em Contexto Sensível* (`SENSITIVE_MINOR`);
+    - *Dados Pessoais Identificáveis sob LGPD* (`PII`).
+  - Modal interativo educativo na página de detalhes do problema ([`IssueDetailPage.tsx`](file:///C:/Users/User/.gemini/antigravity/scratch/opp/apps/web/src/pages/IssueDetailPage.tsx)):
+    - Exibe detalhadamente cada situação em que o texto se enquadra.
+    - Exibe prévia real do comentário com as substituições compulsórias (`######` e `[DADO PROTEGIDO]`).
+    - Oferece ao autor as opções de **"Editar Comentário"** (para adequar a redação) ou **"Postar Mesmo Assim"** (com termos de baixo calão mascarados por `######` e riscos severos enviados à moderação).
+
+### 2. Testes Executados
+- 7 testes em `comment-moderation.test.ts` aprovados (53 testes no monorepo).
+- Build estático de produção do Vite e TypeScript aprovado com código de saída 0.

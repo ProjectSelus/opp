@@ -3,7 +3,9 @@ import {
   IssueComment,
   evaluateCommentRisk,
   applyCommentEdit,
-  processCommentReport
+  processCommentReport,
+  maskProfanity,
+  checkCommentForAuthorWarning
 } from '../src/index.js';
 
 describe('Comment Moderation and Discussion Rules (AC-03 & Seção 16/23)', () => {
@@ -23,6 +25,35 @@ describe('Comment Moderation and Discussion Rules (AC-03 & Seção 16/23)', () =
     expect(result.moderationState).toBe('APPROVED');
     expect(result.requiresHumanReview).toBe(false);
     expect(result.riskFlags).toHaveLength(0);
+    expect(result.hasProfanity).toBe(false);
+  });
+
+  it('should detect profanity and substitute bad words with ######', () => {
+    const rawText = 'Essa rua tá uma merda e uma porra de buraco!';
+    const masked = maskProfanity(rawText);
+    expect(masked.hasProfanity).toBe(true);
+    expect(masked.foundWords).toHaveLength(2);
+    expect(masked.maskedText).toBe('Essa rua tá uma ###### e uma ###### de buraco!');
+
+    const evalResult = evaluateCommentRisk(rawText);
+    expect(evalResult.sanitizedText).toBe('Essa rua tá uma ###### e uma ###### de buraco!');
+    expect(evalResult.hasProfanity).toBe(true);
+    expect(evalResult.riskFlags).toContain('PROFANITY_DETECTED');
+  });
+
+  it('should generate educational warnings for author before posting', () => {
+    const check = checkCommentForAuthorWarning('Que merda de prefeito ladrão, vou quebrar a cara dele!');
+    expect(check.hasWarnings).toBe(true);
+    expect(check.hasProfanity).toBe(true);
+    expect(check.hasHighRisk).toBe(true);
+
+    const categories = check.warnings.map(w => w.category);
+    expect(categories).toContain('PROFANITY');
+    expect(categories).toContain('CRIME_ACCUSATION');
+    expect(categories).toContain('VIOLENCE_THREAT');
+
+    // Prévia deve conter palavrões substituídos por ######
+    expect(check.previewText).toContain('Que ###### de prefeito ladrão');
   });
 
   it('should flag comments containing nominal accusations or sensitive risks', () => {
