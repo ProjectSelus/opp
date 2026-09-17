@@ -1,5 +1,6 @@
 import { AISuggestion, AIRiskReport } from '../providers/contracts.js';
 import { sanitizeText } from '../utils/sanitizer.js';
+import { defangPromptInjection } from '../utils/prompt-defense.js';
 
 interface CivicCategoryMapping {
   categoryId: string;
@@ -52,9 +53,9 @@ export const CIVIC_CATEGORY_MAPPINGS: CivicCategoryMapping[] = [
  * Garante funcionamento contínuo mesmo na ausência de conexão ou cota da IA.
  */
 export function deterministicSuggestMetadata(content: string): AISuggestion {
-  // Garantia mandatória de sanitização prévia (Seção 15.2)
-  const { sanitizedText } = sanitizeText(content);
-  const normalized = sanitizedText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Garantia mandatória de sanitização prévia e desarmamento de injeção (Seção 15.2)
+  const { safeText } = prepareGeminiSafePayload(content);
+  const normalized = safeText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   let bestMatch: CivicCategoryMapping | null = null;
   let highestScore = 0;
@@ -76,21 +77,23 @@ export function deterministicSuggestMetadata(content: string): AISuggestion {
   }
 
   if (bestMatch && highestScore > 0) {
-    const confidenceScore = Math.min(0.92, 0.65 + highestScore * 0.08);
+    const confidence = Math.min(0.50 + highestScore * 0.15, 0.95);
     return {
       suggestedCategoryId: bestMatch.categoryId,
       suggestedAgencyId: bestMatch.agencyId,
-      suggestedSummary: deterministicNeutralSummary(sanitizedText),
-      confidenceScore,
+      suggestedAgencyName: bestMatch.agencyName,
+      suggestedSummary: deterministicNeutralSummary(safeText),
+      confidenceScore: confidence,
       reasoning: `Classificação assistida por correspondência semântica cívica (${bestMatch.agencyName}) - Modo de Resiliência Determinístico.`
     };
   }
 
-  // Fallback neutro genérico quando não há termos conhecidos
+  // Fallback padrão seguro para triagem geral
   return {
     suggestedCategoryId: 'vias',
     suggestedAgencyId: 'sec-obras-mn',
-    suggestedSummary: deterministicNeutralSummary(sanitizedText),
+    suggestedAgencyName: 'Secretaria Municipal de Obras e Serviços Urbanos (SEMOB)',
+    suggestedSummary: deterministicNeutralSummary(safeText),
     confidenceScore: 0.50,
     reasoning: 'Classificação preliminar sugerida para triagem do órgão de obras municipal.'
   };
@@ -99,13 +102,13 @@ export function deterministicSuggestMetadata(content: string): AISuggestion {
 /**
  * Geração determinística de resumo público neutro (Seção 15.1 & AC-10).
  * Converte relatos emotivos em uma síntese objetiva de interesse público,
- * removendo adjetivos injuriosos e pontuações excessivas.
+ * removendo adjetivos injuriosos, comandos de injeção e pontuações excessivas.
  */
 export function deterministicNeutralSummary(content: string, title?: string): string {
-  const { sanitizedText } = sanitizeText(content);
+  const { safeText } = prepareGeminiSafePayload(content);
 
   // Remove caracteres excessivos e gritos (caixa alta contínua)
-  let clean = sanitizedText
+  let clean = safeText
     .replace(/[!]{2,}/g, '.')
     .replace(/[?]{2,}/g, '?')
     .replace(/\s+/g, ' ')
@@ -162,13 +165,19 @@ export function deterministicContentRisk(content: string): AIRiskReport {
 
   // Menção a menores
   const childPatterns = [
-    /\b(crianca de \d+ anos|menor de idade|aluno da escola)\b/i
+    /\b(crian[cç]a de \d+ anos|menor de idade|aluno da escola)\b/i
   ];
   for (const pattern of childPatterns) {
     if (pattern.test(normalized)) {
       riskFlags.push('CHILD_DATA');
       break;
     }
+  }
+
+  // Defesa contra tentativa de injeção de prompt
+  const defense = defangPromptInjection(sanitizedText);
+  if (defense.hasInjectionAttempt) {
+    riskFlags.push('PROMPT_INJECTION_ATTEMPT');
   }
 
   const isHighRisk = riskFlags.length > 0;
@@ -184,18 +193,27 @@ export function deterministicContentRisk(content: string): AIRiskReport {
 
 /**
  * Sanitiza e prepara o payload seguro para envio ao modelo Gemini (Seção 15.2).
- * Garante que nenhum dado pessoal sensível (PII) seja transmitido para a LLM externa.
+ * Garante que nenhum dado pessoal sensível (PII) nem tentativas de prompt injection
+ * consigam comprometer as instruções do sistema.
  */
 export function prepareGeminiSafePayload(rawContent: string): {
   safeText: string;
   piiDetected: boolean;
   detectedTypes: string[];
+  promptInjectionDetected: boolean;
+  injectionFlags: string[];
 } {
+  // 1. Sanitização estrita de dados pessoais (LGPD)
   const { sanitizedText, hasPii, detectedPiiTypes } = sanitizeText(rawContent);
 
+  // 2. Desarmamento de Prompt Injection e delimitadores perigosos
+  const { sanitizedText: safeText, hasInjectionAttempt, detectedAttackTypes } = defangPromptInjection(sanitizedText);
+
   return {
-    safeText: sanitizedText,
+    safeText,
     piiDetected: hasPii,
-    detectedTypes: detectedPiiTypes
+    detectedTypes: detectedPiiTypes,
+    promptInjectionDetected: hasInjectionAttempt,
+    injectionFlags: detectedAttackTypes
   };
 }

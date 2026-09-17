@@ -5,6 +5,8 @@
 
 import { IssueComment, CommentReport, AuditEvent } from './entities.js';
 import { sanitizeText } from '../utils/sanitizer.js';
+import { normalizeForModeration } from '../utils/text-normalizer.js';
+import { defangPromptInjection } from '../utils/prompt-defense.js';
 
 // Padrões de alto risco (Seção 16.2)
 export const CRIME_ACCUSATION_REGEX = /\b(ladr[aã]o|ladr[aã]|roubou|desvio\s+de\s+verba|propina|corrupto|corrup[cç][aã]o|estelionato|superfaturamento)\b/i;
@@ -12,10 +14,11 @@ export const VIOLENCE_THREAT_REGEX = /\b(matar|morte|agredir|porrada|bater|tiro|
 export const MINOR_SENSITIVE_REGEX = /\b(crian[cç]a|menor\s+de\s+idade|adolescente|estupro|pedofilia)\b/i;
 
 // Padrão de linguagem de baixo calão / termos chulos (PT-BR)
-export const PROFANITY_REGEX = /\b(merda|merdas|porra|porras|caralho|caralhos|caralha|puta|putas|puto|putos|putaria|bosta|bostas|bostinha|cacete|cacetes|arrombado|arrombados|arrombada|arrombadas|fdp|filho\s+da\s+puta|filha\s+da\s+puta|foda|foder|fodeu|fudeu|fudido|fodido|fudida|fodida|cu|cuz[aã]o|cuz[oõ]es|vsf|vtnc|tnc|tmnc|vai\s+se\s+foder|tomar\s+no\s+cu|pqp|babaca|babacas|desgra[cç]ado|desgra[cç]ada|desgra[cç]a|vadia|vadias|viado|viados|veado|veados|bicha|bichas)\b/gi;
+export const PROFANITY_REGEX = /\b(merda|merdas|porra|porras|caralho|caralhos|caralha|kralho|krl|puta|putas|puto|putos|putaria|bosta|bostas|bostinha|cacete|cacetes|kct|arrombado|arrombados|arrombada|arrombadas|fdp|filho\s+da\s+puta|filha\s+da\s+puta|foda|foder|fodeu|fudeu|fudido|fodido|fudida|fodida|cu|cuz[aã]o|cuz[oõ]es|pnc|vsf|vtnc|tnc|tmnc|sfd|vai\s+se\s+foder|tomar\s+no\s+cu|pqp|babaca|babacas|desgra[cç]ado|desgra[cç]ada|desgra[cç]a|vadia|vadias|viado|viados|veado|veados|bicha|bichas|sapat[aã]o)\b/gi;
 
 /**
- * Substitui palavras de baixo calão por caracteres ###### (preservando o restante do texto)
+ * Substitui palavras de baixo calão por caracteres ######,
+ * com suporte a desofuscação de leetspeak, repetições e acrônimos espaçados/pontuados
  */
 export function maskProfanity(text: string): {
   maskedText: string;
@@ -23,10 +26,35 @@ export function maskProfanity(text: string): {
   foundWords: string[];
 } {
   const foundWords: string[] = [];
-  const maskedText = text.replace(PROFANITY_REGEX, (match) => {
+  const testRegex = new RegExp(PROFANITY_REGEX.source, 'i');
+
+  // 1. Substituição direta de termos exatos
+  PROFANITY_REGEX.lastIndex = 0;
+  let maskedText = text.replace(PROFANITY_REGEX, (match) => {
     foundWords.push(match);
     return '######';
   });
+
+  // 2. Desofuscação de acrônimos espaçados ou pontuados (ex: "v . s . f", "t - n - c", "v.s.f")
+  const ACRONYM_SPACED_REGEX = /\b(v[\s._-]*s[\s._-]*f|t[\s._-]*n[\s._-]*c|v[\s._-]*t[\s._-]*n[\s._-]*c|t[\s._-]*m[\s._-]*n[\s._-]*c|f[\s._-]*d[\s._-]*p|p[\s._-]*q[\s._-]*p|p[\s._-]*n[\s._-]*c|s[\s._-]*f[\s._-]*d|k[\s._-]*c[\s._-]*t|k[\s._-]*r[\s._-]*l)\b/gi;
+  maskedText = maskedText.replace(ACRONYM_SPACED_REGEX, (match) => {
+    foundWords.push(match);
+    return '######';
+  });
+
+  // 3. Desofuscação por palavra individual com Leetspeak (ex: "v1ado", "p0rra", "m3rda")
+  const tokens = maskedText.split(/(\s+|[.,;!?]+)/);
+  const processedTokens = tokens.map((token) => {
+    if (!token.trim() || token === '######') return token;
+    const normalizedToken = normalizeForModeration(token).toLowerCase();
+    if (testRegex.test(normalizedToken)) {
+      foundWords.push(token);
+      return '######';
+    }
+    return token;
+  });
+
+  maskedText = processedTokens.join('');
 
   return {
     maskedText,
@@ -36,7 +64,7 @@ export function maskProfanity(text: string): {
 }
 
 export interface CommentRiskNotice {
-  category: 'PROFANITY' | 'CRIME_ACCUSATION' | 'VIOLENCE_THREAT' | 'SENSITIVE_MINOR' | 'PII';
+  category: 'PROFANITY' | 'CRIME_ACCUSATION' | 'VIOLENCE_THREAT' | 'SENSITIVE_MINOR' | 'PII' | 'PROMPT_INJECTION';
   title: string;
   description: string;
   recommendation: string;
@@ -124,6 +152,18 @@ export function checkCommentForAuthorWarning(rawText: string): AuthorCommentWarn
     });
   }
 
+  // 6. Defesa contra Prompt Injection / Sobrescrita de Comandos
+  const promptDefense = defangPromptInjection(rawText);
+  if (promptDefense.hasInjectionAttempt) {
+    hasHighRisk = true;
+    warnings.push({
+      category: 'PROMPT_INJECTION',
+      title: 'Comando de Sistema / Injeção Detectado',
+      description: `Foram detectados comandos direcionados à IA (${promptDefense.detectedAttackTypes.join(', ')}).`,
+      recommendation: 'Escreva exclusivamente seu relato ou opinião cívica sem tentar instruir os sistemas automatizados.'
+    });
+  }
+
   return {
     hasWarnings: warnings.length > 0,
     warnings,
@@ -137,13 +177,15 @@ export function checkCommentForAuthorWarning(rawText: string): AuthorCommentWarn
 
 /**
  * Avalia riscos de um comentário antes da persistência.
- * Substitui termos de baixo calão por ###### deterministamente no texto sanitizado final.
+ * Substitui termos de baixo calão por ###### deterministamente no texto sanitizado final
+ * e neutraliza tentativas de prompt injection.
  * Se o autor passou por intervenção de aviso prévio (mesmo que tenha editado até o aviso sumir),
  * marca o comentário para revisão humana (AUTO_FLAGGED) com a flag REVISED_AFTER_WARNING.
  */
 export function evaluateCommentRisk(rawText: string, hadWarningIntervention = false): CommentEvaluationResult {
   const sanitization = sanitizeText(rawText);
   const profanityResult = maskProfanity(sanitization.sanitizedText);
+  const promptDefense = defangPromptInjection(profanityResult.maskedText);
   const riskFlags: string[] = [];
 
   if (sanitization.hasPii) {
@@ -152,6 +194,10 @@ export function evaluateCommentRisk(rawText: string, hadWarningIntervention = fa
 
   if (profanityResult.hasProfanity) {
     riskFlags.push('PROFANITY_DETECTED');
+  }
+
+  if (promptDefense.hasInjectionAttempt) {
+    riskFlags.push('PROMPT_INJECTION_ATTEMPT');
   }
 
   if (CRIME_ACCUSATION_REGEX.test(rawText)) {
@@ -176,13 +222,14 @@ export function evaluateCommentRisk(rawText: string, hadWarningIntervention = fa
     f === 'VIOLENCE_OR_THREAT' || 
     f === 'SENSITIVE_MINOR_DATA' ||
     f === 'REVISED_AFTER_WARNING' ||
+    f === 'PROMPT_INJECTION_ATTEMPT' ||
     f.startsWith('PII_')
   );
 
   const moderationState = (hasSevereRisk || hadWarningIntervention) ? 'AUTO_FLAGGED' : 'APPROVED';
 
   return {
-    sanitizedText: profanityResult.maskedText,
+    sanitizedText: promptDefense.sanitizedText,
     moderationState,
     riskFlags,
     requiresHumanReview: moderationState === 'AUTO_FLAGGED',

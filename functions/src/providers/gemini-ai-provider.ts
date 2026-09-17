@@ -6,7 +6,9 @@ import {
   prepareGeminiSafePayload,
   deterministicSuggestMetadata,
   deterministicNeutralSummary,
-  deterministicContentRisk
+  deterministicContentRisk,
+  SYSTEM_SAFETY_INSTRUCTION,
+  encapsulateUntrustedInput
 } from '@opp/shared';
 
 export interface GeminiAIProviderOptions {
@@ -19,6 +21,7 @@ export interface GeminiAIProviderOptions {
  * Cumpre:
  * - Seção 15.1: IA estritamente assistiva, sem poderes decisórios soberanos.
  * - Seção 15.2: Higienização determinística local prévia e mandatória antes de qualquer envio à LLM.
+ * - Defesa de Prompt Injection: Sanitização de comandos de sobrescrita e encapsulamento em tags XML seguras.
  * - Critério AC-10: Modo de resiliência e fallback offline automático em caso de falta de chave, erro ou timeout.
  */
 export class GeminiAIProvider implements AIProvider {
@@ -27,25 +30,18 @@ export class GeminiAIProvider implements AIProvider {
 
   constructor(options: GeminiAIProviderOptions = {}) {
     const apiKey = options.apiKey || process.env.GEMINI_API_KEY;
-    this.modelName = options.modelName || 'gemini-2.5-flash';
+    this.modelName = options.modelName || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
     if (apiKey) {
-      try {
-        this.client = new GoogleGenAI({ apiKey });
-      } catch (err) {
-        console.warn('[GeminiAIProvider] Falha ao inicializar cliente GoogleGenAI. Modo offline ativado:', err);
-        this.client = null;
-      }
-    } else {
-      console.info('[GeminiAIProvider] Nenhuma GEMINI_API_KEY detectada. Operando em modo de resiliência offline (AC-10).');
+      this.client = new GoogleGenAI({ apiKey });
     }
   }
 
   /**
-   * Sugere categoria municipal e órgão competente com base no relato do cidadão.
+   * Sugere categoria e órgão de destino a partir do relato do cidadão (Seção 15.1).
    */
   async suggestMetadata(rawContent: string): Promise<AISuggestion> {
-    // 1. Higienização mandatória pré-IA (Seção 15.2)
+    // 1. Sanitização prévia mandatória (Seção 15.2) e Defesa de Injeção de Prompt
     const { safeText } = prepareGeminiSafePayload(rawContent);
 
     // 2. Fallback imediato se não houver cliente configurado (AC-10)
@@ -54,11 +50,13 @@ export class GeminiAIProvider implements AIProvider {
     }
 
     try {
-      const prompt = `Você é o módulo de triagem assistiva da Ouvidoria Pública Popular (OPP).
-Analise o seguinte relato cívico já previamente descaracterizado e sanitizado:
-"""${safeText}"""
+      const prompt = `${SYSTEM_SAFETY_INSTRUCTION}
 
-Retorne APENAS um objeto JSON válido (sem blocos markdown adicionais ou texto explicativo fora do JSON) com a seguinte estrutura:
+Você é o módulo de triagem assistiva da Ouvidoria Pública Popular (OPP).
+Analise o seguinte relato cívico previamente sanitizado contido na tag <user_input_untrusted>:
+${encapsulateUntrustedInput(safeText)}
+
+Retorne APENAS um objeto JSON válido com a seguinte estrutura:
 {
   "suggestedCategoryId": "iluminacao" | "vias" | "saude" | "limpeza" | "saneamento" | "transporte",
   "suggestedAgencyId": "sec-obras-mn" | "sec-saude-mn" | "sec-transporte-mn",
@@ -102,9 +100,11 @@ Retorne APENAS um objeto JSON válido (sem blocos markdown adicionais ou texto e
     }
 
     try {
-      const prompt = `Você é o redator neutro da Ouvidoria Pública Popular (OPP).
-Reescreva o relato cívico a seguir em uma síntese objetiva, neutra, formal e livre de adjetivos acusatórios, preservando estritamente os fatos materiais (o problema, local aproximado e impacto relatado):
-"""${safeText}"""
+      const prompt = `${SYSTEM_SAFETY_INSTRUCTION}
+
+Você é o redator neutro da Ouvidoria Pública Popular (OPP).
+Reescreva o relato cívico a seguir, contido na tag <user_input_untrusted>, em uma síntese objetiva, neutra, formal e livre de adjetivos acusatórios:
+${encapsulateUntrustedInput(safeText)}
 
 Regras:
 1. Máximo de 280 caracteres.
@@ -132,7 +132,7 @@ Regras:
    * Avaliação de risco de moderação para triagem (Seção 15.1 & 16.2).
    */
   async evaluateContentRisk(rawContent: string): Promise<AIRiskReport> {
-    const { safeText, piiDetected } = prepareGeminiSafePayload(rawContent);
+    const { safeText, piiDetected, promptInjectionDetected } = prepareGeminiSafePayload(rawContent);
 
     // Heurística local de alta sensibilidade
     const localReport = deterministicContentRisk(safeText);
@@ -142,15 +142,23 @@ Regras:
         localReport.riskFlags.push('SENSITIVE_DATA');
       }
     }
+    if (promptInjectionDetected) {
+      localReport.isHighRisk = true;
+      if (!localReport.riskFlags.includes('PROMPT_INJECTION_ATTEMPT')) {
+        localReport.riskFlags.push('PROMPT_INJECTION_ATTEMPT');
+      }
+    }
 
     if (!this.client) {
       return localReport;
     }
 
     try {
-      const prompt = `Você é o auditor de moderação cívica da Ouvidoria Pública Popular (OPP).
-Avalie o seguinte texto cívico:
-"""${safeText}"""
+      const prompt = `${SYSTEM_SAFETY_INSTRUCTION}
+
+Você é o auditor de moderação cívica da Ouvidoria Pública Popular (OPP).
+Avalie o seguinte texto cívico contido na tag <user_input_untrusted>:
+${encapsulateUntrustedInput(safeText)}
 
 Identifique se há:
 1. Acusações nominais de crimes contra pessoas sem decisão judicial (NOMINAL_CRIME_ACCUSATION).
@@ -188,6 +196,82 @@ Retorne APENAS um objeto JSON:
     } catch (error) {
       console.warn('[GeminiAIProvider] Erro ao avaliar risco com Gemini. Usando relatório determinístico local:', error);
       return localReport;
+    }
+  }
+
+  /**
+   * Análise Semântica Contextual de Toxicidade e Discriminação (Camada 3 de Moderação)
+   * Avalia ofensas compostas, preconceito, etarismo, homofobia e ataques que passam por regex simples
+   */
+  async evaluateCivicToxicity(rawContent: string): Promise<{
+    isToxic: boolean;
+    categories: string[];
+    explanation: string;
+    flaggedTerms: string[];
+  }> {
+    const { safeText, promptInjectionDetected } = prepareGeminiSafePayload(rawContent);
+
+    if (promptInjectionDetected) {
+      return {
+        isToxic: true,
+        categories: ['PROMPT_INJECTION_ATTEMPT'],
+        explanation: 'Comando de injeção de prompt ou tentativa de sobrescrita de instruções do sistema.',
+        flaggedTerms: ['[PROMPT_INJECTION]']
+      };
+    }
+
+    if (!this.client) {
+      const risk = deterministicContentRisk(safeText);
+      return {
+        isToxic: risk.isHighRisk,
+        categories: risk.riskFlags,
+        explanation: risk.isHighRisk ? 'Identificado risco por regras locais.' : 'Conteúdo adequado.',
+        flaggedTerms: []
+      };
+    }
+
+    try {
+      const prompt = `${SYSTEM_SAFETY_INSTRUCTION}
+
+Você é o auditor semântico de integridade cívica da Ouvidoria Pública Popular (OPP).
+Avalie a mensagem contida na tag <user_input_untrusted>:
+${encapsulateUntrustedInput(safeText)}
+
+Analise se há toxicidade cívica, ataques pessoais pejorativos (ex: homofobia, etarismo, preconceito, acusações sem provas, desrespeito à honra).
+Nota cívica: Críticas duras aos serviços públicos ("asfalto péssimo", "falta remédio") são LEGÍTIMAS. Ofensas a pessoas ("velho viado", "ladrão", "idiota") são INADEQUADAS.
+
+Retorne APENAS um objeto JSON:
+{
+  "isToxic": boolean,
+  "categories": string[],
+  "explanation": "Breve justificativa técnica",
+  "flaggedTerms": string[]
+}`;
+
+      const response = await this.client.models.generateContent({
+        model: this.modelName,
+        contents: prompt
+      });
+
+      const text = response.text?.trim() || '';
+      const jsonStr = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+      const parsed = JSON.parse(jsonStr);
+
+      return {
+        isToxic: !!parsed.isToxic,
+        categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+        explanation: parsed.explanation || 'Avaliação semântica processada com sucesso.',
+        flaggedTerms: Array.isArray(parsed.flaggedTerms) ? parsed.flaggedTerms : []
+      };
+    } catch (error) {
+      console.warn('[GeminiAIProvider] Erro ao avaliar toxicidade semântica com Gemini. Usando fallback:', error);
+      const risk = deterministicContentRisk(safeText);
+      return {
+        isToxic: risk.isHighRisk,
+        categories: risk.riskFlags,
+        explanation: 'Fallback determinístico local executado.',
+        flaggedTerms: []
+      };
     }
   }
 }

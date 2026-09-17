@@ -22,6 +22,7 @@ export interface SearchProvider {
 export interface AISuggestion {
   suggestedCategoryId?: string;
   suggestedAgencyId?: string;
+  suggestedAgencyName?: string;
   suggestedSummary?: string;
   confidenceScore: number;
   reasoning?: string;
