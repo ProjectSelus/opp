@@ -67,8 +67,8 @@ export const FormalAdhesionPage: React.FC = () => {
           Adesão Formal Registrada com Sucesso!
         </h1>
         <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-          Sua manifestação formal individual foi vinculada ao problema <strong>{issue.issueId}</strong>.
-          Ela foi incluída na fila de despacho para encaminhamento oficial ao órgão competente.
+          Sua manifestação formal individual foi gerada com sucesso e <strong>o e-mail formal de reclamação foi despachado imediatamente para a ouvidoria do órgão competente</strong> ({agency?.name || 'Órgão Responsável'}).
+          Assim que o órgão responder formalmente por e-mail ou ofício, nossa esteira automatizada fará a leitura do protocolo, validação de integridade e anexará a devolutiva pública aqui no portal.
         </p>
 
         {/* Comprovante Digital de Transmissão (Seção 18.4 & 21.3) */}
@@ -299,7 +299,7 @@ export const FormalAdhesionPage: React.FC = () => {
                   required
                 />
                 <span>
-                  <strong>Autorização de Transmissão (Seção 18):</strong> Autorizo a plataforma Ouvidoria Pública Popular (OPP) a transmitir eletronicamente esta manifestação individual ao órgão competente ({agency?.name || 'Órgão Responsável'}), ciente de que a OPP atua como meio técnico de transmissão autorizada e não como representante jurídica.
+                  <strong>Autorização de Transmissão por E-mail (Seção 18 & Lei nº 13.460/2017):</strong> Autorizo a plataforma Ouvidoria Pública Popular (OPP) a transmitir eletronicamente esta manifestação individual ao canal de ouvidoria do órgão competente ({agency?.name || 'Órgão Responsável'}), acionando a obrigação de resposta oficial. Estou ciente de que a OPP atua como meio técnico de transmissão autorizada.
                 </span>
               </label>
 

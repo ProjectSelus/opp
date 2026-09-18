@@ -25,7 +25,12 @@ import {
   HelpCircle,
   Award,
   AlertTriangle,
-  Edit3
+  Edit3,
+  Download,
+  Mail,
+  Eye,
+  FileCheck,
+  Printer
 } from 'lucide-react';
 import { mockIssues, mockAgencies, mockPublicResponses } from '../mock/data';
 import { StatusBadge } from '../components/StatusBadge';
@@ -121,6 +126,16 @@ export const IssueDetailPage: React.FC = () => {
   ]);
   const [userVote, setUserVote] = useState<ResolutionVoteOption | null>(null);
   const [showVoteSuccess, setShowVoteSuccess] = useState(false);
+  const [selectedDocModal, setSelectedDocModal] = useState<{
+    title: string;
+    subtitle: string;
+    protocol?: string;
+    date: string;
+    hash: string;
+    type: 'DISPATCH' | 'AGENCY_RESPONSE';
+    content: string;
+    attachments?: Array<{ name: string; url: string; mimeType: string; sizeBytes?: number; hash?: string }>;
+  } | null>(null);
 
   const consensus = computeResolutionConsensus(resolutionVotes, 3);
 
@@ -636,15 +651,42 @@ export const IssueDetailPage: React.FC = () => {
             </h2>
 
             <div className="relative border-l-2 border-slate-200 ml-3 space-y-8 pl-6">
-              {/* Evento 1 */}
+              {/* Evento 1: Resposta Oficial Recebida por E-mail */}
+              {officialResponse && (
+                <div className="relative">
+                  <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-emerald-600 border-4 border-white shadow" />
+                  <span className="text-xs font-semibold text-slate-400">
+                    {new Date(officialResponse.publishedAt).toLocaleDateString('pt-BR')} • {new Date(officialResponse.publishedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                    <h4 className="text-sm font-bold text-slate-900">Resposta Oficial Conclusiva Recebida por E-mail</h4>
+                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                      E-mail Institucional Ingerido
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">
+                    A Secretaria Municipal ({agency?.name || 'Órgão Responsável'}) enviou devolutiva oficial institucional referente ao protocolo <strong>{officialResponse.protocolNumber}</strong>. O conteúdo foi sanitizado e disponibilizado com seus anexos oficiais para deliberação da comunidade.
+                  </p>
+                  <div className="mt-2 text-xs font-mono bg-emerald-50 text-emerald-800 p-2 rounded border border-emerald-200 inline-block break-all">
+                    Hash SHA-256 da Devolutiva: {officialResponse.documentHash || '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb'}
+                  </div>
+                </div>
+              )}
+
+              {/* Evento 2: Reclamações Formais Transmitidas */}
               <div className="relative">
-                <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white shadow" />
+                <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-blue-600 border-4 border-white shadow" />
                 <span className="text-xs font-semibold text-slate-400">10 de Setembro de 2026 • 14:30</span>
-                <h4 className="text-sm font-bold text-slate-900 mt-0.5">Encaminhado ao Órgão Competente</h4>
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                  <h4 className="text-sm font-bold text-slate-900">Reclamações Formais Cidadãs Transmitidas ao Órgão</h4>
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                    42 Manifestações Individuais
+                  </span>
+                </div>
                 <p className="text-xs text-slate-600 mt-1">
-                  Despacho em lote transmitido para <strong>obras@mundonovo.ms.gov.br</strong> (Canal Oficial Verificado) contendo 42 manifestações formais autorizadas pelos cidadãos.
+                  Reclamações formais individuais autorizadas pelos moradores encaminhadas via e-mail para <strong>obras@mundonovo.ms.gov.br</strong> (Canal Oficial Verificado) sob a disciplina da Lei Federal nº 13.460/2017, com Reply-To dinâmico para recebimento automático da resposta.
                 </p>
-                <div className="mt-2 text-xs font-mono bg-slate-100 p-2 rounded text-slate-700 inline-block">
+                <div className="mt-2 text-xs font-mono bg-slate-100 p-2 rounded text-slate-700 inline-block break-all">
                   Hash SHA-256 do Documento: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
                 </div>
               </div>
@@ -665,9 +707,9 @@ export const IssueDetailPage: React.FC = () => {
                 </div>
               ))}
 
-              {/* Evento 2 */}
+              {/* Evento 3: Problema Aberto */}
               <div className="relative">
-                <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow" />
+                <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-slate-400 border-4 border-white shadow" />
                 <span className="text-xs font-semibold text-slate-400">02 de Setembro de 2026 • 10:14</span>
                 <h4 className="text-sm font-bold text-slate-900 mt-0.5">Problema Aberto e Aprovado pela Moderação</h4>
                 <p className="text-xs text-slate-600 mt-1">
@@ -678,37 +720,151 @@ export const IssueDetailPage: React.FC = () => {
           </section>
 
           {/* Documentos Formais e Respostas Institucionais */}
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center">
-              <Shield className="w-5 h-5 mr-2 text-purple-600" />
-              Documentos Formais Vinculados
-            </h2>
-
-            <div className="border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  PDF
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h4 className="text-sm font-bold text-slate-900">Carta de Encaminhamento Cidadã — Despacho DSP-00142</h4>
-                    <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                      Lote Consolidado (AC-06)
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Transmitido em 10/09/2026 às 14:30 • 42 manifestações formais agrupadas • Cópias enviadas aos cidadãos (AC-08)
-                  </p>
-                  <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-                    Hash SHA-256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-                  </p>
-                </div>
+          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center">
+                  <Shield className="w-5 h-5 mr-2 text-purple-600" />
+                  Documentos Formais Vinculados
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Expedientes oficiais de envio e retorno auditados com assinatura criptográfica SHA-256
+                </p>
               </div>
+              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                {officialResponse ? '2 documentos oficiais' : '1 documento oficial'}
+              </span>
+            </div>
 
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  Transmitido ao Órgão
-                </span>
+            <div className="space-y-4">
+              {/* 1. DOCUMENTO DE RETORNO: RESPOSTA OFICIAL DA SECRETARIA / E-MAIL INGERIDO */}
+              {officialResponse && (
+                <div className="border-2 border-emerald-200 bg-emerald-50/30 rounded-xl p-5 space-y-4 transition-all hover:border-emerald-300">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                        <FileCheck className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-bold text-slate-900">
+                            Ofício & Resposta Oficial — Protocolo {officialResponse.protocolNumber}
+                          </h4>
+                          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                            Devolutiva Oficial do Órgão
+                          </span>
+                          <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                            Recebido por E-mail
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          Emitido pela {agency?.name || 'Secretaria Competente'} • Recebido e verificado em {new Date(officialResponse.publishedAt).toLocaleDateString('pt-BR')} às {new Date(officialResponse.publishedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-[11px] font-mono text-slate-500 break-all">
+                          Hash SHA-256 de Autenticidade: <code>{officialResponse.documentHash || '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb'}</code>
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedDocModal({
+                          title: `Ofício & Resposta Oficial — Protocolo ${officialResponse.protocolNumber}`,
+                          subtitle: `Emitido pela ${agency?.name || 'Secretaria Municipal de Obras e Serviços Urbanos'}`,
+                          protocol: officialResponse.protocolNumber,
+                          date: new Date(officialResponse.publishedAt).toLocaleString('pt-BR'),
+                          hash: officialResponse.documentHash || '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb',
+                          type: 'AGENCY_RESPONSE',
+                          content: officialResponse.sanitizedContent,
+                          attachments: officialResponse.attachments
+                        })
+                      }
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 flex-shrink-0 shadow-sm"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Visualizar Devolutiva</span>
+                    </button>
+                  </div>
+
+                  {/* Anexos Oficiais */}
+                  {officialResponse.attachments && officialResponse.attachments.length > 0 && (
+                    <div className="pt-3 border-t border-emerald-100 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-700 text-[11px]">Arquivos Anexados pelo Órgão:</span>
+                      {officialResponse.attachments.map((att, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() =>
+                            setSelectedDocModal({
+                              title: att.name,
+                              subtitle: `Anexo Oficial do Protocolo ${officialResponse.protocolNumber}`,
+                              protocol: officialResponse.protocolNumber,
+                              date: new Date(officialResponse.publishedAt).toLocaleString('pt-BR'),
+                              hash: att.hash || '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb',
+                              type: 'AGENCY_RESPONSE',
+                              content: officialResponse.sanitizedContent
+                            })
+                          }
+                          className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 font-semibold text-[11px] transition-colors"
+                        >
+                          <FileText className="w-3 h-3 text-emerald-600" />
+                          <span>{att.name}</span>
+                          <Download className="w-3 h-3 text-slate-400" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. DOCUMENTO DE IDA: CARTA DE ENCAMINHAMENTO CIDADÃ / DESPACHO */}
+              <div className="border border-slate-200 bg-white rounded-xl p-5 space-y-4 hover:border-slate-300 transition-colors">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                      PDF
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-900">
+                          Carta de Reclamação Formal Cidadã — Despacho DSP-00142
+                        </h4>
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                          {issue.formalSupportCount} Adesões Cidadãs Vinculadas
+                        </span>
+                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+                          Transmitido ao Órgão
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Transmitido eletronicamente via e-mail em 10/09/2026 às 14:30 para obras@mundonovo.ms.gov.br • Cópias enviadas aos cidadãos (AC-08)
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 break-all">
+                        Hash SHA-256: <code>e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedDocModal({
+                        title: 'Carta de Reclamação Formal Cidadã — Despacho DSP-00142',
+                        subtitle: `Expediente oficial transmitido à ${agency?.name || 'SEMOB'}`,
+                        protocol: 'DSP-00142',
+                        date: '10 de Setembro de 2026 às 14:30',
+                        hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                        type: 'DISPATCH',
+                        content: `SOLICITAÇÃO COLETIVA DE PROVIDÊNCIAS — MANIFESTAÇÕES FORMAIS VINCULADAS\n\nIdentificador do Problema: ${issue.issueId}\nTítulo: ${issue.title}\nLocalização: ${issue.locationApprox.neighborhood} — ${issue.locationApprox.streetApprox || ''}\nTotal de Requerentes Cadastrados: ${issue.formalSupportCount} cidadãos munícipes.\n\nFundamentação Legal: Lei Federal nº 13.460/2017 e Lei nº 13.709/2018 (LGPD).\n\nSíntese das Manifestações:\n"${issue.publicSummary}"\n\nAs manifestações formais foram outorgadas com autorização expressa para encaminhamento à ouvidoria pública do órgão competente. A Ouvidoria Pública Popular (OPP) atua como meio técnico de transmissão autorizada.`
+                      })
+                    }
+                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 flex-shrink-0 shadow-sm"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Visualizar Expediente</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -985,6 +1141,138 @@ export const IssueDetailPage: React.FC = () => {
               >
                 <Send className="w-4 h-4" />
                 <span>Postar Mesmo Assim</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE VISUALIZAÇÃO DE DOCUMENTO FORMAL VINCULADO (PDF / OFÍCIO / RESPOSTA OFICIAL) */}
+      {selectedDocModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-150">
+            {/* Header do Modal */}
+            <div className="p-5 bg-slate-900 text-white flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-xs ${
+                  selectedDocModal.type === 'AGENCY_RESPONSE'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-opp-blue-primary/30 text-blue-300 border border-blue-400/30'
+                }`}>
+                  {selectedDocModal.type === 'AGENCY_RESPONSE' ? <Mail className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                      selectedDocModal.type === 'AGENCY_RESPONSE'
+                        ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-700/50'
+                        : 'bg-blue-900/80 text-blue-300 border border-blue-700/50'
+                    }`}>
+                      {selectedDocModal.type === 'AGENCY_RESPONSE' ? 'Resposta Oficial do Órgão' : 'Expediente Formal Cidadão'}
+                    </span>
+                    {selectedDocModal.protocol && (
+                      <span className="text-[11px] font-mono text-slate-300">
+                        Protocolo: <strong>{selectedDocModal.protocol}</strong>
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-base font-bold text-white mt-1 leading-snug">
+                    {selectedDocModal.title}
+                  </h3>
+                  <p className="text-xs text-slate-400">{selectedDocModal.subtitle}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDocModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Metadados e Integridade Criptográfica */}
+            <div className="bg-slate-50 border-b border-slate-200 px-5 py-3 text-xs space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between text-slate-600 gap-2">
+                <span><strong>Data/Hora de Registro:</strong> {selectedDocModal.date}</span>
+                <span className="inline-flex items-center text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold text-[11px]">
+                  <FileCheck className="w-3.5 h-3.5 mr-1" />
+                  Integridade Verificada
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-slate-500 break-all bg-white p-2 rounded border border-slate-200">
+                <span className="text-slate-400 font-sans block text-[10px] uppercase font-bold tracking-wider">Assinatura Digital & Hash SHA-256:</span>
+                {selectedDocModal.hash}
+              </div>
+            </div>
+
+            {/* Conteúdo do Documento */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1 text-xs leading-relaxed text-slate-800">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                {selectedDocModal.content}
+              </div>
+
+              {/* Anexos se houver */}
+              {selectedDocModal.attachments && selectedDocModal.attachments.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center">
+                    <Download className="w-3.5 h-3.5 mr-1.5 text-opp-blue-primary" />
+                    Arquivos Anexados Disponíveis ({selectedDocModal.attachments.length})
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedDocModal.attachments.map((att, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between hover:bg-slate-50"
+                      >
+                        <div className="truncate mr-2">
+                          <p className="font-semibold text-slate-800 truncate">{att.name}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            {att.sizeBytes ? `${Math.round(att.sizeBytes / 1024)} KB • ` : ''}{att.mimeType}
+                          </p>
+                        </div>
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2 py-1 bg-opp-blue-primary/10 text-opp-blue-primary hover:bg-opp-blue-primary hover:text-white rounded text-[11px] font-bold flex items-center space-x-1 flex-shrink-0 transition-colors"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Baixar</span>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nota de fé pública e transparência */}
+              <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-amber-900 text-[11px] flex items-start space-x-2">
+                <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p>
+                  <strong>Acesso Público sob a Lei nº 13.460/2017:</strong> Este documento formal é disponibilizado com integridade garantida por hash criptográfico e anonimização de dados pessoais sensíveis conforme a Lei Geral de Proteção de Dados (LGPD).
+                </p>
+              </div>
+            </div>
+
+            {/* Rodapé de Ações */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-3 py-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Imprimir / Salvar PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDocModal(null)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors"
+              >
+                Fechar Visualizador
               </button>
             </div>
           </div>

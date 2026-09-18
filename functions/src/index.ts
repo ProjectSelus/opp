@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import {
   Issue,
@@ -27,7 +27,11 @@ import {
   groupManifestationsForDispatch,
   buildAgencyDispatchEmail,
   buildCitizenConfirmationEmail,
+  buildIndividualAdhesionEmail,
   processAgencyResponse,
+  processInboundEmail,
+  extractCorrelationIdentifiers,
+  InboundEmailPayload,
   computeResolutionConsensus,
   CitizenResolutionVote,
   ResolutionVoteOption
@@ -46,6 +50,7 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const issueRepo = new FirestoreIssueRepository();
 const searchProvider = new FirestoreTokenSearchProvider(issueRepo);
+const mailProvider = new SmtpMailProvider();
 
 /**
  * Endpoint de busca estrutural de Issues (Busca-first - Seção 12)
@@ -710,6 +715,46 @@ export const createFormalAdhesion = onCall({ cors: true }, async (request) => {
 
   await batch.commit();
 
+  // 6. Disparo individual da reclamação cívica formal ao órgão por e-mail (com Reply-To dinâmico)
+  try {
+    const agencyId = issue.agencyIds[0] || 'sec-obras-mn';
+    const agencyDoc = await db.collection('agencies').doc(agencyId).get();
+    if (agencyDoc.exists) {
+      const agencyData = agencyDoc.data() as Agency;
+      const agencyChannel = agencyData.channels.find(c => c.type === 'EMAIL') || agencyData.channels[0];
+      if (agencyChannel) {
+        const citizenUser = await admin.auth().getUser(userId).catch(() => null);
+        const citizenFullName = citizenUser?.displayName || 'Cidadão Manifestante';
+        const citizenEmail = citizenUser?.email || 'cidadao@exemplo.com';
+
+        const adhesionEmail = buildIndividualAdhesionEmail({
+          manifestation: newManifestation,
+          issue,
+          agency: agencyData,
+          agencyChannel,
+          citizenFullName,
+          citizenCpfMasked: '***.***.***-**',
+          citizenEmail,
+          municipalityName: 'Mundo Novo - MS'
+        });
+
+        await mailProvider.send(adhesionEmail);
+
+        if (consents.receiveEmailCopy && citizenEmail) {
+          const confirmationEmail = buildCitizenConfirmationEmail(
+            citizenEmail,
+            newManifestation,
+            issue,
+            agencyData.name
+          );
+          await mailProvider.send(confirmationEmail);
+        }
+      }
+    }
+  } catch (emailErr) {
+    console.warn('[createFormalAdhesion] Aviso no disparo individual de e-mail ao órgão:', emailErr);
+  }
+
   return {
     success: true,
     manifestationId: manifestationRef.id,
@@ -1224,6 +1269,92 @@ export const submitResolutionFeedbackEndpoint = onCall({ cors: true }, async (re
     consensus
   };
 });
+
+/**
+ * Webhook Inbound Email Endpoint (Recepção Automática de Respostas Oficiais de E-mail)
+ * Recebe e-mails de secretarias/órgãos municipais, correlaciona ao problema público,
+ * higieniza PII (LGPD), anexa o documento/e-mail com Hash SHA-256 e atualiza o estado da ouvidoria.
+ */
+export const inboundEmailWebhookEndpoint = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Método não permitido. Utilize POST.' });
+    return;
+  }
+
+  try {
+    const rawBody = req.body || {};
+    const from = rawBody.from || rawBody.sender || rawBody['envelope[from]'] || '';
+    const to = rawBody.to || rawBody.recipient || rawBody['envelope[to]'] || '';
+    const subject = rawBody.subject || '';
+    const bodyText = rawBody.text || rawBody.bodyText || rawBody.body || rawBody['stripped-text'] || '';
+    const bodyHtml = rawBody.html || rawBody.bodyHtml || '';
+    const headers = typeof rawBody.headers === 'object' ? rawBody.headers : {};
+
+    const payload: InboundEmailPayload = {
+      from,
+      to,
+      subject,
+      bodyText,
+      bodyHtml,
+      headers,
+      receivedAt: new Date().toISOString()
+    };
+
+    const correlation = extractCorrelationIdentifiers(payload);
+    if (!correlation.issueId) {
+      res.status(400).json({
+        error: 'Não foi possível correlacionar o e-mail a nenhum problema público do OPP.',
+        matchedVia: correlation.matchedVia
+      });
+      return;
+    }
+
+    const issueDoc = await db.collection('issues').doc(correlation.issueId).get();
+    if (!issueDoc.exists) {
+      res.status(404).json({
+        error: `Problema público ${correlation.issueId} não encontrado.`
+      });
+      return;
+    }
+
+    const issue = issueDoc.data() as Issue;
+    const result = processInboundEmail(payload, issue);
+
+    const batch = db.batch();
+
+    // 1. Grava resposta pública sanitizada com o hash e anexos
+    batch.set(
+      db.collection('publicAgencyResponses').doc(result.publicResponse.responseId),
+      result.publicResponse
+    );
+
+    // 2. Atualiza o status do Issue
+    batch.update(db.collection('issues').doc(correlation.issueId), {
+      status: result.updatedIssueStatus,
+      updatedAt: new Date().toISOString(),
+      lastPublicActivityAt: new Date().toISOString()
+    });
+
+    // 3. Registra evento de auditoria imutável
+    batch.set(db.collection('auditEvents').doc(result.auditEvent.eventId), result.auditEvent);
+
+    await batch.commit();
+
+    res.status(200).json({
+      success: true,
+      responseId: result.publicResponse.responseId,
+      issueId: correlation.issueId,
+      issueStatus: result.updatedIssueStatus,
+      isAutoReply: result.isAutoReply,
+      protocolNumber: result.publicResponse.protocolNumber,
+      documentHash: result.publicResponse.documentHash
+    });
+  } catch (err: any) {
+    console.error('[inboundEmailWebhookEndpoint] Erro ao processar e-mail de entrada:', err);
+    res.status(500).json({ error: 'Erro interno ao processar e-mail de retorno do órgão.', details: err?.message });
+  }
+});
+
 
 
 

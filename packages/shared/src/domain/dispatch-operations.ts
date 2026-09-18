@@ -340,3 +340,149 @@ export function computeRetryBackoffMinutes(retryCount: number): number {
   if (retryCount === 2) return 15;
   return 60; // fallback para além do limiar padrão
 }
+
+export interface BuildIndividualAdhesionEmailParams {
+  manifestation: FormalManifestation;
+  issue: Issue;
+  agency: Agency;
+  agencyChannel: AgencyChannel;
+  citizenFullName: string;
+  citizenCpfMasked: string;
+  citizenEmail: string;
+  municipalityName?: string;
+  systemSenderEmail?: string;
+  domainName?: string;
+}
+
+/**
+ * Constrói o e-mail formal individual de reclamação disparado a cada adesão do cidadão.
+ * Encaminha diretamente à ouvidoria/secretaria municipal com Reply-To dinâmico para captura automática da resposta.
+ */
+export function buildIndividualAdhesionEmail(params: BuildIndividualAdhesionEmailParams): MailOptions & {
+  documentHash: string;
+  replyToAddress: string;
+} {
+  const {
+    manifestation,
+    issue,
+    agency,
+    agencyChannel,
+    citizenFullName,
+    citizenCpfMasked,
+    citizenEmail,
+    municipalityName = 'Mundo Novo - MS',
+    systemSenderEmail = 'ouvidoria@opp.org.br',
+    domainName = 'ouvidoria.opp.org.br'
+  } = params;
+
+  const protocol = manifestation.protocolCode || manifestation.manifestationId;
+  const replyToAddress = `resposta+${issue.issueId}+${manifestation.manifestationId}@${domainName}`;
+  const subject = `[OPP - Reclamação Cívica] ${issue.title} (Protocolo: ${protocol})`;
+
+  const rawDocumentPayload = `${protocol}:${issue.issueId}:${manifestation.userId}:${manifestation.citizenStatement}`;
+  const documentHash = computeDeterministicChecksum(rawDocumentPayload);
+
+  const bodyText = `
+SOLICITAÇÃO DE PROVIDÊNCIAS — MANIFESTAÇÃO CIDADÃ INDIVIDUAL
+Ouvidoria Pública Popular (OPP) • Município de ${municipalityName}
+
+Ao órgão: ${agency.name}
+Canal Notificado: ${(agencyChannel as any).name || agencyChannel.channelId} (${agencyChannel.addressOrUrl || (agencyChannel as any).contactAddress})
+
+IDENTIFICAÇÃO DO PROTOCOLO:
+- Código da Manifestação: ${protocol}
+- Problema Público Vinculado: ${issue.issueId} — ${issue.title}
+- Data de Transmissão: ${new Date(manifestation.createdAt).toLocaleString('pt-BR')}
+- Local Aproximado: ${issue.locationApprox.neighborhood} — ${issue.locationApprox.city}
+- Hash de Integridade Documental (SHA-256): ${documentHash}
+
+DADOS DO REQUERENTE (Lei Federal nº 13.460/2017):
+- Nome Completo: ${citizenFullName}
+- CPF (Mascarado): ${citizenCpfMasked}
+- E-mail de Contato: ${citizenEmail}
+
+RELATO / DECLARAÇÃO DO CIDADÃO:
+"${manifestation.citizenStatement}"
+
+AVISO LEGAL E DEVOLUTIVA OFICIAL:
+O cidadão acima identificado outorgou autorização para a transmissão eletrônica desta manifestação formal individual à ouvidoria competente.
+
+PARA ENVIAR SUA RESPOSTA OFICIAL:
+Basta responder diretamente a este e-mail. A sua resposta será automaticamente capturada pelo sistema, higienizada nos termos da LGPD e vinculada ao processo público para ciência do cidadão e acompanhamento da comunidade.
+
+Atenciosamente,
+Plataforma Ouvidoria Pública Popular (OPP)
+  `.trim();
+
+  const bodyHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; }
+    .header { background: #0F2942; color: #ffffff; padding: 24px; text-align: center; }
+    .box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .statement { background: #ffffff; border-left: 4px solid #0284c7; padding: 14px; margin: 16px 0; font-style: italic; }
+    .notice { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 8px; font-size: 13px; color: #166534; }
+    .footer { font-size: 11px; color: #64748b; margin-top: 24px; text-align: center; }
+  </style>
+</head>
+<body style="padding: 20px;">
+  <div style="max-width: 650px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden;">
+    <div class="header">
+      <h2 style="margin: 0; font-size: 20px;">Solicitação de Providências — Manifestação Cidadã</h2>
+      <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.85;">Ouvidoria Pública Popular (OPP) • ${municipalityName}</p>
+    </div>
+    <div style="padding: 24px;">
+      <p>Prezados(as) responsáveis pelo órgão <strong>${agency.name}</strong>,</p>
+      <p>Encaminhamos manifestação individual formalizada por cidadão do município, solicitando providências quanto à demanda pública abaixo:</p>
+
+      <div class="box">
+        <div style="font-size: 11px; font-weight: bold; color: #0284c7; text-transform: uppercase;">Protocolo Cívico:</div>
+        <div style="font-size: 18px; font-weight: bold; font-family: monospace; color: #0f2942;">${protocol}</div>
+        <div style="margin-top: 8px; font-size: 13px;">
+          <strong>Demanda:</strong> ${issue.title}<br>
+          <strong>Local:</strong> ${issue.locationApprox.neighborhood} — ${issue.locationApprox.streetApprox || ''}<br>
+          <strong>Requerente:</strong> ${citizenFullName} (CPF: ${citizenCpfMasked})
+        </div>
+      </div>
+
+      <div class="statement">
+        "${manifestation.citizenStatement}"
+      </div>
+
+      <div class="notice">
+        <strong>Como emitir a resposta oficial:</strong><br>
+        Basta <strong>responder diretamente a este e-mail</strong>. O sistema processará automaticamente o despacho do órgão, registrando a resposta oficial na plataforma para ciência do requerente e acompanhamento comunitário.
+      </div>
+
+      <div class="footer">
+        Hash de Integridade SHA-256: <code>${documentHash}</code><br>
+        Emitido sob disciplina da Lei Federal nº 13.460/2017 e Lei nº 13.709/2018 (LGPD).
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return {
+    from: systemSenderEmail,
+    to: agencyChannel.addressOrUrl || (agencyChannel as any).contactAddress,
+    replyTo: replyToAddress,
+    subject,
+    bodyText,
+    bodyHtml,
+    headers: {
+      'Reply-To': replyToAddress,
+      'X-OPP-Issue-Id': issue.issueId,
+      'X-OPP-Manifestation-Id': manifestation.manifestationId,
+      'X-OPP-Protocol-Code': protocol,
+      'X-OPP-Agency-Id': agency.agencyId
+    },
+    documentHash,
+    replyToAddress
+  };
+}
+

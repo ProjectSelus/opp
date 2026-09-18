@@ -13,3 +13,5 @@ export * from './utils/search-tokens.js';
 export * from './utils/similarity.js';
 export * from './utils/text-normalizer.js';
 export * from './utils/prompt-defense.js';
+export * from './domain/inbound-email-operations.js';
+

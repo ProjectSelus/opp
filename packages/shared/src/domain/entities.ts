@@ -244,6 +244,18 @@ export interface PublicAgencyResponse {
   protocolNumber?: string;
   publishedAt: string;
   userResolutionFeedback?: 'SIM' | 'PARCIALMENTE' | 'NAO' | 'NAO_SEI_AVALIAR';
+  responseType?: 'ACKNOWLEDGMENT' | 'SUBSTANTIVE_RESOLUTION' | 'REJECTION';
+  channelReceived?: AgencyChannelType | 'EMAIL';
+  documentPdfUrl?: string;
+  documentHash?: string;
+  inboundSubject?: string;
+  attachments?: Array<{
+    name: string;
+    url: string;
+    mimeType: string;
+    sizeBytes?: number;
+    hash?: string;
+  }>;
 }
 
 export interface ModerationCase {

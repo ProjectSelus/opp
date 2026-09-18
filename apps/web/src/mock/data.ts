@@ -1,4 +1,4 @@
-import { Issue, Municipality, Agency } from '@opp/shared';
+import { Issue, Municipality, Agency, PublicAgencyResponse } from '@opp/shared';
 
 export const mockMunicipality: Municipality = {
   municipalityId: 'mundo-novo-ms',
@@ -245,7 +245,7 @@ export const mockIssues: Issue[] = [
   }
 ];
 
-export const mockPublicResponses = [
+export const mockPublicResponses: PublicAgencyResponse[] = [
   {
     responseId: 'RESP-MN-2026-0089',
     issueId: 'OPP-MN-2026-00142',
@@ -253,7 +253,29 @@ export const mockPublicResponses = [
     sanitizedSummary: 'Serviço de manutenção de iluminação pública executado pela equipe de campo no trecho da Rua das Flores.',
     sanitizedContent: 'A Secretaria Municipal de Obras e Serviços Urbanos (SEMOB) informa que uma equipe do departamento de iluminação compareceu ao local e concluiu a substituição de 5 lâmpadas de vapor de sódio danificadas por novas luminárias LED de 100W, restabelecendo a iluminação integral da via pública.',
     protocolNumber: 'SEMOB/ILUM-2026/04481',
-    publishedAt: '2026-09-16T15:30:00.000Z'
+    publishedAt: '2026-09-16T15:30:00.000Z',
+    responseType: 'SUBSTANTIVE_RESOLUTION',
+    channelReceived: 'EMAIL',
+    inboundSubject: 'Re: [OPP - Reclamação Cívica] Postes com lâmpadas apagadas (Protocolo: SEMOB/ILUM-2026/04481)',
+    documentPdfUrl: '#',
+    documentHash: '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb',
+    attachments: [
+      {
+        name: 'Oficio-SEMOB-ILUM-04481-Conclusao.pdf',
+        url: '#',
+        mimeType: 'application/pdf',
+        sizeBytes: 245760,
+        hash: '8f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb'
+      },
+      {
+        name: 'Espelho-Email-Oficial-SEMOB.pdf',
+        url: '#',
+        mimeType: 'application/pdf',
+        sizeBytes: 118784,
+        hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+      }
+    ]
   }
 ];
+
 
