@@ -3,7 +3,7 @@
  * Regras para adesão individual, integridade com hash SHA-256 e consentimentos
  */
 
-import { FormalManifestation, Issue, AuditEvent, CitizenConsentRecord } from './entities.js';
+import { FormalManifestation, Issue, AuditEvent } from './entities.js';
 import { FormalManifestationStatus } from './state-machines.js';
 
 export const CURRENT_DOCUMENT_TEMPLATE_VERSION = 'v3.0-2026.09';

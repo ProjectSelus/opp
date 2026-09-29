@@ -1,4 +1,4 @@
-import { Issue, FormalManifestation, Dispatch, ModerationCase } from '../domain/entities.js';
+import { Issue, FormalManifestation } from '../domain/entities.js';
 
 export interface SearchQuery {
   municipalityId: string;
