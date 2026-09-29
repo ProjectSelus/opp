@@ -2,6 +2,15 @@
 
 Este documento audita o avanço de cada fase de implementação em relação ao *Documento de Arquitetura e Diretrizes de Implementação Assistida por IA (Versão 3.0 — Setembro de 2026)*.
 
+## [Auditoria de Arquitetura: Compatibilidade de Prototipagem na Vercel & Manutenção do Cânone Firebase] — Setembro de 2026
+
+- **Objetivo**: Habilitar a publicação imediata da demonstração frontend do portal cívico na Vercel para testes visuais rápidos com munícipes e partes interessadas, preservando integralmente o backend canônico no Firebase.
+- **Garantias de Desacoplamento Arquitetural**:
+  1. **Firebase Mantido como Cânone Oficial**: A modelagem do Firestore (`firestore.rules`, `firestore.indexes.json`), Cloud Functions 2nd Gen (`functions/src`), storage e emuladores locais permanecem a espinha dorsal definitiva do projeto.
+  2. **Isolamento de Configuração**: Os arquivos `vercel.json` e `apps/web/vercel.json` atuam exclusivamente como metadados de hospedagem do provedor Vercel e foram explicitamente adicionados ao vetor `ignore` do `firebase.json` (`firebase.json -> hosting -> ignore`). Não são transferidos nem lidos pelo Firebase Hosting.
+  3. **Tipagem Aprimorada no TypeScript**: O mapeamento `paths` em `apps/web/tsconfig.json` (`@opp/shared -> ../../packages/shared/src/index.ts`) permite compilar o frontend estático tanto em pipelines isolados (Vercel) quanto na esteira unificada do Firebase (`firebase deploy --only hosting`), tornando a compilação do Vite mais resiliente e sem acoplamento a pastas de distribuição intermediárias.
+  4. **Nenhum Vendor Lock-in**: Não foi instalado nenhum SDK ou dependência da Vercel (`@vercel/...`) no `package.json`. A migração para o Firebase Hosting no lançamento final requer zero refatoração.
+
 ---
 
 ## [Fase 1: Fundação] — Setembro de 2026
