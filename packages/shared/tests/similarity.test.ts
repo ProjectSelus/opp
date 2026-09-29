@@ -143,4 +143,67 @@ describe('Similarity and Duplicate Prevention Engine (AC-01, AC-02 & Seção 12)
     );
     expect(hiddenCandidate).toBeNull();
   });
+
+  it('should find issues using incomplete words (prefixes / autocomplete)', () => {
+    // Busca com prefixo "bur" deve casar com "buraco"
+    const potholeCandidate = calculateIssueSimilarity(
+      {
+        municipalityId: 'mundo-novo-ms',
+        title: 'bur'
+      },
+      potholeIssue
+    );
+    expect(potholeCandidate).not.toBeNull();
+    expect(potholeCandidate!.similarityScore).toBeGreaterThanOrEqual(0.30);
+    expect(potholeCandidate!.matchedTokens).toContain('buraco');
+
+    // Busca com prefixo "ilum" deve casar com "iluminacao"
+    const lightCandidate = calculateIssueSimilarity(
+      {
+        municipalityId: 'mundo-novo-ms',
+        title: 'ilum'
+      },
+      existingIssue
+    );
+    expect(lightCandidate).not.toBeNull();
+    expect(lightCandidate!.similarityScore).toBeGreaterThanOrEqual(0.30);
+    expect(lightCandidate!.matchedTokens).toContain('iluminacao');
+  });
+
+  it('should find issues using fuzzy matching and typo tolerance', () => {
+    // Erro leve de digitação: "iluminasao" com s
+    const typoCandidate = calculateIssueSimilarity(
+      {
+        municipalityId: 'mundo-novo-ms',
+        title: 'iluminasao'
+      },
+      existingIssue
+    );
+    expect(typoCandidate).not.toBeNull();
+    expect(typoCandidate!.similarityScore).toBeGreaterThanOrEqual(0.30);
+
+    // Variação de plural: "postes" vs "poste"
+    const pluralCandidate = calculateIssueSimilarity(
+      {
+        municipalityId: 'mundo-novo-ms',
+        title: 'postes apagados'
+      },
+      existingIssue
+    );
+    expect(pluralCandidate).not.toBeNull();
+    expect(pluralCandidate!.similarityScore).toBeGreaterThanOrEqual(0.40);
+  });
+
+  it('should find duplicates when prefix of civic synonym is used (e.g. crat -> cratera -> buraco)', () => {
+    const candidate = calculateIssueSimilarity(
+      {
+        municipalityId: 'mundo-novo-ms',
+        title: 'crat'
+      },
+      potholeIssue
+    );
+    expect(candidate).not.toBeNull();
+    expect(candidate!.similarityScore).toBeGreaterThanOrEqual(0.30);
+    expect(candidate!.matchedTokens).toContain('buraco');
+  });
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
+import { calculateIssueSimilarity } from '@opp/shared';
 import { mockIssues, mockCategories, mockAgencies } from '../mock/data';
 import { IssueCard } from '../features/issues/IssueCard';
 
@@ -14,10 +15,27 @@ export const ProblemsPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
 
   const filteredIssues = mockIssues.filter(issue => {
-    const matchesQuery = !query.trim() ||
-      issue.title.toLowerCase().includes(query.toLowerCase()) ||
-      issue.publicSummary.toLowerCase().includes(query.toLowerCase()) ||
-      issue.locationApprox.neighborhood.toLowerCase().includes(query.toLowerCase());
+    let matchesQuery = !query.trim();
+    if (query.trim()) {
+      const qLower = query.toLowerCase();
+      const inText = issue.title.toLowerCase().includes(qLower) ||
+        issue.publicSummary.toLowerCase().includes(qLower) ||
+        issue.locationApprox.neighborhood.toLowerCase().includes(qLower) ||
+        (issue.locationApprox.streetApprox && issue.locationApprox.streetApprox.toLowerCase().includes(qLower));
+
+      if (inText) {
+        matchesQuery = true;
+      } else {
+        const similarity = calculateIssueSimilarity(
+          {
+            municipalityId: issue.municipalityId,
+            title: query
+          },
+          issue
+        );
+        matchesQuery = Boolean(similarity && similarity.similarityScore >= 0.15);
+      }
+    }
 
     const matchesCategory = selectedCategory === 'all' || issue.categoryId === selectedCategory;
     const matchesStatus = selectedStatus === 'all' || issue.status === selectedStatus;

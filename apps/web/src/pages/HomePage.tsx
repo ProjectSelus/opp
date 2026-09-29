@@ -33,7 +33,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="space-y-16 pb-12">
       {/* 1. HERO SEARCH-FIRST (Seção 29.2) */}
-      <section className="relative civic-gradient text-white pt-16 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden shadow-xl">
+      <section className="relative z-20 civic-gradient text-white pt-16 pb-20 px-4 sm:px-6 lg:px-8 shadow-xl">
         <div className="hero-overlay absolute inset-0 pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto text-center space-y-6">
@@ -59,7 +59,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* 2. CAUSAS EM DESTAQUE (Categorias) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10">
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200/80 p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
