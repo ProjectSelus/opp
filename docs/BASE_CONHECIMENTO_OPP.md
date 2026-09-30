@@ -1,9 +1,9 @@
-# Base de Conhecimento, Visão Social e Manual de Funções
+# Base de Conhecimento, Visão Social e Manual Completo de Operações
 # Ouvidoria Pública Popular (OPP) — Versão 3.0
 
 > **Finalidade deste Documento:**  
-> 1. Servir como **base de contexto e conhecimento oficial** para alimentar o **Assistente Virtual de Inteligência Artificial** integrado ao site da OPP.  
-> 2. Fornecer aos fundadores, parceiros, órgãos públicos e cidadãos uma visão clara, técnica e humanizada sobre o propósito, impacto social e funcionamento de todas as ferramentas da plataforma.
+> 1. **Base de Conhecimento Mestra para o Assistente Virtual (Chatbot de IA):** Fornece o contexto institucional, técnico, legal e social para instruir o assistente inteligente no portal da OPP.  
+> 2. **Manual de Esclarecimento para Parceiros, Órgãos Públicos e Cidadãos:** Detalha minuciosamente a visão social, todas as funções da plataforma, fluxo de auditoria, tratamento de fotos, telemetria, canal de denúncias e segurança.
 
 ---
 
@@ -35,8 +35,10 @@ A **OPP** é uma plataforma de **Tecnologia Cívica (*Civic Tech*)** independent
 * **Adesão Formal Cidadã:** Ação na qual outro munícipe afetado vincula sua identidade legal ao problema já aberto, outorgando mandato técnico à OPP para cobrar o órgão responsável.
 * **Despacho Individual:** Notificação formal gerada e enviada diretamente à ouvidoria pública do órgão competente a cada adesão cadastrada.
 * **Devolutiva Oficial:** Resposta fundamentada emitida pelo órgão responsável, contendo protocolo administrativo, data e prazos de resolução.
-* **Hash SHA-256:** Código alfanumérico único de 64 caracteres gerado por cálculo matemático que comprova a autenticidade e inviolabilidade do documento.
+* **Hash SHA-256:** Código alfanumérico único de 64 caracteres gerado por cálculo matemático que comprova a autenticidade e inviolabilidade de documentos, fotos e expedientes.
 * **Consenso Comunitário de Resolução:** Métrica cívica calculada a partir dos votos da vizinhança (Sim, Parcialmente, Não) para validar a eficácia de um reparo público.
+* **Caso de Moderação (*ModerationCase*):** Registro administrativo em fila para apuração de denúncias ou riscos detectados por algoritmos.
+* **Evento de Auditoria (*AuditEvent*):** Registro imutável de qualquer ação relevante executada no sistema para fins de fé pública e rastreabilidade jurídica.
 
 ---
 
@@ -44,7 +46,7 @@ A **OPP** é uma plataforma de **Tecnologia Cívica (*Civic Tech*)** independent
 
 ### 3.1. Busca Prévia Inteligente (*Search-First*)
 * **Como Funciona:** Logo na tela inicial e no formulário de novo problema, o cidadão digita o que está acontecendo (ex: *"poste queimado rua 7"*).
-* **Tecnologia:** Motor de busca por tokens e similaridade semântica com suporte a prefixos, tolerância ortográfica e normalização da língua portuguesa.
+* **Tecnologia:** Motor de busca por tokens e similaridade semântica com suporte a prefixos rápidos (a partir de 2 letras), tolerância ortográfica e normalização da língua portuguesa.
 * **Propósito Social:** Redirecionar o cidadão para aderir a um problema já aberto em seu bairro. 100 moradores unidos em torno de um único protocolo exercem uma pressão cívica imensamente superior a 100 registros isolados.
 
 ### 3.2. Relato de Novo Problema Público
@@ -67,40 +69,148 @@ A **OPP** é uma plataforma de **Tecnologia Cívica (*Civic Tech*)** independent
 * **Autoflag Cívico:** Se o usuário insistir em postar ou se tentar burlar as regras editando aos poucos, a postagem é encaminhada para a fila de moderação humana com a marcação `AUTO_FLAGGED`.
 * **Defesa contra *Prompt Injection*:** Toda mensagem inserida passa por rotinas de contenção para impedir que comandos maliciosos afetem as IAs da plataforma.
 
-### 3.5. Galeria de Evidências Fotográficas e Documentais
-* **Como Funciona:** Moradores podem anexar fotos de postes, buracos, vazamentos ou documentos públicos.
-* **Isolamento e Segurança:** As imagens são enviadas para uma área privada de validação onde os metadados sensíveis (como coordenadas GPS da câmera pessoal) são removidos antes da exposição pública, protegendo os moradores de qualquer risco de exposição.
+---
 
-### 3.6. Ingestão Automatizada de E-mails do Poder Público
-* **Como Funciona:** Quando a ouvidoria pública da prefeitura ou secretaria responde ao e-mail de notificação (ou envia um ofício em PDF anexado), o webhook de ingestão da OPP entra em ação.
-* **Correlação Automática:** O sistema identifica a qual problema aquela resposta pertence através do remetente dinâmico (*Plus Addressing*, ex: `resposta+OPP-MN-2026-00142@ouvidoria.opp.org.br`) ou pelo número do protocolo no assunto/corpo.
-* **Extração de Protocolo do Órgão:** Um algoritmo de leitura identifica códigos como `SEMOB/ILUM-2026/04481` ou `99881/2026`.
-* **Classificação de Teor:** O sistema distingue se é apenas uma mensagem automática de recebimento (*Acknowledgment*) ou uma resposta conclusiva com solução dos trabalhos.
-* **Publicação com Hash SHA-256:** A resposta oficial e seus anexos originais em PDF são disponibilizados publicamente para consulta de todos os munícipes na página do problema.
+## 4. Tratamento de Fotos e Evidências Documentais
 
-### 3.7. Seção "Documentos Formais Vinculados" e Modal de Visualização
-* **Acesso Público Irrestrito:** Qualquer cidadão pode ler na íntegra a Carta Cidadã enviada e o Ofício Oficial respondido pelo órgão.
-* **Comprovação de Fé Pública:** O modal exibe a data exata do registro, o número do protocolo do órgão, o hash criptográfico SHA-256 de autenticidade e um botão de **"Imprimir / Salvar PDF"**.
+Fotos e imagens são o coração da comprovação cívica, mas representam riscos críticos de privacidade se não forem tratadas com rigor técnico. Na OPP, o fluxo de fotos segue padrões de segurança de nível governamental:
 
-### 3.8. Votação Cívica de Resolução & Consenso
-* **O Problema Resolvido:** Muitas vezes o poder público encerra um chamado como "concluído", mas a equipe apenas passou pelo local ou fez um conserto precário.
-* **Como Funciona:** Moradores autenticados que acompanham o problema votam:
-  - *Sim, resolvido totalmente*
-  - *Parcialmente resolvido*
-  - *Não resolvido*
-  - *Não sei avaliar*
-* **Algoritmo de Consenso:** O problema só transiciona para o status `RESOLVED` no sistema se atingir a margem de concordância da população local. Caso contrário, permanece com status de contestação ou reabertura comunitária.
+### 4.1. Upload Seguro e Restrições Técnicas
+* **Formatos Permitidos:** Apenas imagens legítimas (`image/jpeg`, `image/png`, `image/webp`) e documentos oficiais em PDF (`application/pdf`).
+* **Limite de Tamanho:** Máximo de 10 MB por arquivo para evitar negação de serviço e sobrecarga de infraestrutura.
+* **Isolamento Inicial em Área Privada:** A imagem enviada pelo cidadão **nunca** vai diretamente para o feed público. Ela é gravada em um bucket privado com controle de acesso (`/users/{uid}/evidence/`).
 
-### 3.9. Painel de Transparência e Estatísticas Abertas
-* **Dados Públicos Abertos:** Relatórios mensais e gráficos demonstrando:
-  - Tempo médio de resposta de cada secretaria;
-  - Secretarias mais atenciosas e secretarias reincidentes em silêncio;
-  - Volume de adesões formais atendidas por bairro;
-  - Dossiês de problemas históricos pendentes há mais de 30 dias.
+### 4.2. Higienização Obrigatória de Metadados (Remoção de EXIF/GPS)
+* **O Perigo do EXIF:** Ao tirar uma foto com um smartphone moderno, o aparelho grava dados ocultos no arquivo: coordenadas geográficas exatas (latitude/longitude com precisão de centímetros), modelo do celular, data/hora e número de série. Se a foto for tirada dentro de casa ou em frente ao portão, isso exporia a localização privada da família do denunciante.
+* **Processamento Automatizado:** A esteira de ingestão de mídia processa o arquivo, **remove 100% dos metadados EXIF e dados de geolocalização da câmera** e recodifica a imagem antes de disponibilizá-la publicamente.
+* **Proteção à Integridade Física:** Garante que vizinhos, terceiros ou agentes mal-intencionados não consigam rastrear o dispositivo do munícipe.
+
+### 4.3. Hash Criptográfico SHA-256 da Imagem
+* Cada foto recebe um hash SHA-256 gerado no momento do recebimento. Esse código atesta em juízo ou perante o Ministério Público que a foto anexada não sofreu manipulações gráficas enganosas (como adição de montagens ou adulteração de datas).
+
+### 4.4. Moderação Visual de Conteúdo
+* Evidências passam por triagem prévia: imagens contendo rostos de crianças/menores de idade desacompanhados, documentos pessoais de terceiros (como cartões de crédito ou holerites caídos no lixo) ou dados ofensivos são bloqueadas ou têm as partes sensíveis borradas (*blurring*) antes da publicação pública.
 
 ---
 
-## 4. Perguntas Frequentes (FAQ Estruturado para o Assistente Virtual)
+## 5. Reportar Incidentes, Denúncias e Moderação Comunitária
+
+Para garantir um espaço livre de assédio, calúnias ou vazamento de dados, a OPP conta com um **Canal Integrado de Denúncias e Gestão de Incidentes**:
+
+### 5.1. Como o Cidadão Denuncia um Abuso
+Em qualquer comentário, evidência ou problema público, existe o botão **"Denunciar"** com opções pré-categorizadas:
+* **`OFFENSIVE` (Ofensa / Baixo Calão / Calúnia):** Xingamentos nominais a servidores, vizinhos ou discurso de ódio.
+* **`PII_LEAK` (Vazamento de Dados Pessoais):** Exposição de CPF, telefone pessoal, número de WhatsApp, placas de carro ou residência de outrem.
+* **`CRIME_ACCUSATION` (Acusação Nominal de Crime):** Imputação de crimes (como corrupção, roubo ou desvio) sem processo transitado em julgado, evitando riscos de responsabilização civil.
+* **`SPAM` (Spam ou Propaganda Comercial):** Venda de serviços, links promocionais ou autopromoção política/eleitoral.
+* **`OTHER` (Outras Violações):** Qualquer outra conduta contrária à civilidade.
+
+### 5.2. Ciclo de Vida do Caso de Moderação (`ModerationCase`)
+Ao ser denunciado ou marcado pelo filtro automático, é gerado um `ModerationCase` que passa pelos seguintes estados:
+1. **`AUTO_FLAGGED`:** Sinalizado automaticamente pelos motores de segurança.
+2. **`HUMAN_REVIEW`:** Em análise por um moderador cívico ou equipe de conformidade.
+3. **`APPROVED`:** O conteúdo foi verificado e cumpre as normas, permanecendo visível.
+4. **`EDIT_REQUESTED`:** Notificação enviada ao autor para ajustar trechos específicos.
+5. **`REJECTED`:** Conteúdo removido do ar por violar termos de uso ou a legislação.
+6. **`ESCALATED`:** Encaminhado para a coordenação jurídica em casos graves (ex: ameaças de morte ou exploração de menores).
+
+### 5.3. Quarentena Preventiva Automática (*Circuit Breaker*)
+Se um comentário ou foto receber **3 denúncias independentes** de cidadãos distintos, o sistema ativa uma suspensão preventiva automática: o item é ocultado da visualização pública provisoriamente até que um moderador humano tome a decisão final. Isso neutraliza ataques coordenados ou vazamento de fotos íntimas antes que viralizem.
+
+---
+
+## 6. Auditoria Imutável (*Append-Only Audit Log*) e Fé Pública
+
+A OPP adota a filosofia de que **"tudo o que tem impacto cívico deve ser auditável e comprovável"**. Por isso, a plataforma conta com uma esteira de auditoria de dados imutável.
+
+### 6.1. O que é o *Append-Only Log*?
+* Diferente de sistemas convencionais onde registros podem ser editados ou apagados no banco de dados por um administrador com acesso direto, na OPP a tabela de auditoria é **estritamente acumulativa (*Append-Only*)**.
+* Nenhuma função no código, nenhum administrador e nenhum moderador possui permissão no banco para fazer `UPDATE` ou `DELETE` em um registro da coleção `auditEvents`. Toda e qualquer alteração cria um NOVO evento registrando o que mudou, quem mudou e por que mudou.
+
+### 6.2. Estrutura do Evento de Auditoria (`AuditEvent`)
+Cada ação relevante na plataforma gera um registro com a seguinte estrutura:
+* **`eventId`:** Identificador único global do evento.
+* **`timestamp`:** Data, hora e milissegundo exatos em padrão ISO 8601 com fuso horário auditado.
+* **`actorType`:** Categoria do autor da ação (`CITIZEN`, `MODERATOR`, `ADMIN`, `SYSTEM`).
+* **`actorId`:** Identificador único do autor (ou hash seguro de sessão se anônimo).
+* **`action`:** Ação específica executada (ex: `ISSUE_CREATED`, `FORMAL_MANIFESTATION_REGISTERED`, `INDIVIDUAL_DISPATCH_DISPATCHED`, `INBOUND_EMAIL_INGESTED`, `COMMENT_MODERATED`, `RESOLUTION_VOTED`, `ISSUE_MERGED`).
+* **`entityType` & `entityId`:** Qual elemento foi alterado (problema, manifestação, comentário, evidência).
+* **`beforeHash` & `afterHash`:** O hash SHA-256 do estado do dado antes e depois da ação, garantindo prova matemática de integridade.
+* **`correlationId`:** Código rastreador que conecta toda a cadeia de eventos (desde a abertura do chamado até o despacho do e-mail e a resposta do órgão).
+* **`ipHash`:** Hash criptográfico do endereço IP do solicitante (o IP bruto é descartado em respeito à LGPD, mas o hash permite provar unicidade e barrar robôs).
+
+### 6.3. Blindagem Jurídica perante Órgãos de Controle
+Essa auditoria imutável permite que o dossiê da OPP seja apresentado ao **Ministério Público Estadual (MPE)**, à **Defensoria Pública** ou ao **Tribunal de Contas** como prova incontestável de que o poder público foi formalmente notificado e de que a população acompanhou e cobrou a demanda de forma legítima.
+
+---
+
+## 7. Telemetria e Monitoramento de Desempenho Cívico
+
+A telemetria da OPP é desenhada com foco exclusivo na **saúde da infraestrutura e no impacto social**, sem violar a privacidade dos cidadãos.
+
+### 7.1. Métricas de Impacto Cívico Acompanhadas
+* **Taxa de Conversão de Busca Prévia:** Percentual de munícipes que pesquisaram e aderiram a um problema existente em vez de criar um duplicado (mede a eficácia da união comunitária).
+* **Tempo Médio de Primeira Resposta do Órgão (SLA Cívico):** Quantidade de dias corridos entre o primeiro despacho formal de e-mail e a devolutiva protocolada da secretaria responsável.
+* **Índice de Resolutividade Comunitária:** Percentual de problemas que tiveram resposta do órgão atestada como "Resolvido" pelos munícipes na votação cívica.
+* **Engajamento por Bairro:** Mapeamento de quais regiões da cidade enfrentam maior escassez de serviços essenciais.
+
+### 7.2. Métricas Técnicas de Desempenho e IA
+* **Latência de Heurísticas de IA:** Tempo de resposta na geração de resumos neutros e sugestões de categorias.
+* **Taxa de Aceitação da IA:** Frequência com que o cidadão aceita a categoria e a secretaria municipal sugeridas pela IA.
+* **Volume de E-mails Inbound Ingeridos:** Monitoramento de respostas recebidas de provedores governamentais.
+
+### 7.3. Princípios de Privacidade da Telemetria (Zero Espionagem)
+* **Sem Cookies de Terceiros:** A OPP não utiliza trackers invasivos ou ferramentas de remarketing publicitário.
+* **Anonimização de Tráfego:** Métricas de navegação não são cruzadas com o CPF ou identidade dos munícipes.
+
+---
+
+## 8. Ingestão Automatizada de E-mails e Documentos Oficiais
+
+### 8.1. Como Funciona a Leitura de Respostas dos Órgãos Públicos
+1. Ao despachar um e-mail de adesão formal, o sistema define um endereço dinâmico de retorno (*Plus-Addressing*), por exemplo: `resposta+OPP-MN-2026-00142@ouvidoria.opp.org.br`.
+2. Quando o servidor público clica em "Responder" no seu software de e-mail (Outlook, Gmail, Expresso) ou anexa um ofício assinado em PDF, o e-mail chega no webhook da OPP (`inboundEmailWebhookEndpoint`).
+3. O motor de correlação identifica instantaneamente o problema correspondente através do remetente, cabeçalhos RFC (`X-OPP-Issue-Id`) ou menção do código no assunto.
+4. Um extrator de padrões (*regex*) faz a leitura do texto para identificar o número oficial de protocolo do órgão (ex: `SEMOB/ILUM-2026/04481`).
+5. O sistema classifica o teor da resposta (confirmação preliminar de recebimento vs solução efetiva do serviço).
+6. O texto passa por sanitização determinística para proteger eventuais dados de servidores e é publicado na linha do tempo do problema com carimbo SHA-256 e anexos originais para download.
+
+### 8.2. Seção "Documentos Formais Vinculados" e Modal de Visualização
+Na página pública de cada problema, a seção de documentos permite a qualquer pessoa:
+* Visualizar o **Expediente de Ida (Carta de Reclamação Formal Cidadã)** com a contagem de adesões vinculadas e fundamentação na Lei 13.460/2017.
+* Visualizar o **Expediente de Volta (Resposta Oficial / Ofício em PDF)** da secretaria.
+* Conferir a autenticidade pelo Hash SHA-256.
+* Acionar o botão **"Imprimir / Salvar PDF"** para gerar uma via física ou digital formatada para arquivo pessoal.
+
+---
+
+## 9. Votação Cívica de Resolução & Consenso Comunitário
+
+### 9.1. O Fim do "Resolvido no Papel"
+Um dos maiores vícios da administração pública é marcar protocolos de ouvidoria como "atendidos" ou "concluídos" sem que a equipe tenha de fato ido ao local ou após realizar um reparo de péssima qualidade que quebra dias depois.
+
+### 9.2. A Regra do Consenso
+* Na OPP, a declaração de conclusão por parte do órgão **não fecha o problema automaticamente**.
+* O problema entra na fase de **Verificação Cívica de Resolução**.
+* Os cidadãos que acompanham e residem na região são convidados a votar:
+  - **Sim:** O problema foi sanado completamente.
+  - **Parcialmente:** A equipe esteve no local, mas o problema persiste ou o serviço ficou incompleto.
+  - **Não:** Nada foi feito.
+  - **Não sei avaliar:** Munícipe que apoia a causa, mas não transita frequentemente pelo ponto exato.
+* Um algoritmo de consenso analisa a proporção dos votos (exigindo quorum mínimo). O problema só ganha a chancela `RESOLVED` se a população confirmar o reparo. Se os moradores votarem massivamente "Não", o problema é mantido aberto e uma reabertura contestada é gerada.
+
+---
+
+## 10. Gestão de Duplicidades: Fusão (*Merge*) e Desmembramento (*Split*)
+
+Quando munícipes diferentes relatam a mesma ocorrência (ex: dois vizinhos fotografam o mesmo buraco em esquinas conectadas):
+1. **Fusão Canônica (*Merge*):** O moderador ou o sistema correlaciona os chamados. O relato mais completo é mantido como principal, e o outro é fundido (`mergedIntoIssueId`).
+2. **Preservação de Direitos:** Nenhuma assinatura é perdida. As adesões formais e evidências do problema secundário são migradas e somadas ao dossiê principal.
+3. **Redirecionamento Transparente:** Quem acessar o link antigo é automaticamente redirecionado para a página canônica com um aviso explicando a união das queixas para ganho de força política.
+
+---
+
+## 11. FAQ Estruturado (Perguntas Frequentes para Cidadãos e Assistente Virtual)
 
 ### Q1: A OPP é um órgão da Prefeitura ou do Governo?
 **R:** Não. A Ouvidoria Pública Popular (OPP) é uma plataforma cívica independente mantida pela própria comunidade e por tecnologia social. Ela atua como ponte técnica autorizada pelos cidadãos para formalizar cobranças e exigir respostas nos termos da lei.
@@ -114,26 +224,35 @@ A **OPP** é uma plataforma de **Tecnologia Cívica (*Civic Tech*)** independent
 ### Q4: Por que alguns comentários aparecem com "######"?
 **R:** Para manter a conversa construtiva e republicana, palavras de baixo calão e ofensas são mascaradas com `######`. O objetivo é focar na cobrança do serviço público, mantendo um ambiente seguro e civilizado.
 
-### Q5: O que é o Hash SHA-256 que aparece nos documentos?
-**R:** É uma assinatura digital criptográfica única. Ela garante que o ofício emitido pelo órgão ou a carta enviada pelos moradores não foram adulterados ou falsificados. Qualquer pessoa pode conferir a integridade do arquivo.
+### Q5: O que é o Hash SHA-256 que aparece nos documentos e fotos?
+**R:** É uma assinatura digital criptográfica única. Ela garante que o ofício emitido pelo órgão, a carta enviada pelos moradores ou a foto da prova não foram adulterados ou forjados após o envio.
 
 ### Q6: Quem decide se o problema foi mesmo resolvido?
 **R:** A comunidade. Mesmo que a prefeitura informe que concluiu a obra, os munícipes votam se o serviço foi satisfatório. O sistema só dá o caso como resolvido se a população confirmar o reparo.
 
+### Q7: O que acontece se alguém publicar uma foto falsa ou com rostos de terceiros?
+**R:** As fotos passam por remoção automática de dados de localização da câmera (EXIF/GPS) e são submetidas à moderação. Imagens inadequadas podem ser denunciadas por qualquer cidadão e são colocadas em quarentena automática após 3 denúncias.
+
+### Q8: Como denunciar um comentário calunioso ou ofensivo?
+**R:** Basta clicar no ícone da bandeira ou botão "Denunciar" ao lado do comentário, selecionar o motivo (ofensa, vazamento de dados, spam, etc.) e confirmar. A mensagem é enviada diretamente para a fila prioritária dos moderadores cívicos.
+
 ---
 
-## 5. Diretrizes de Comportamento para o Assistente Virtual (System Prompt)
+## 12. Diretrizes de Comportamento para o Assistente Virtual (System Prompt)
 
-Quando utilizar esta base de conhecimento para configurar o Assistente Virtual (Chatbot de IA) no portal, utilize as seguintes instruções mestras:
+Quando for configurar o Assistente Virtual (Chatbot de IA) no portal da OPP, utilize a seguinte instrução mestra de personalidade e sistema:
 
 ```text
-Você é a "Guardiã Cívica", assistente virtual oficial da Ouvidoria Pública Popular (OPP).
-Seu objetivo é acolher, tirar dúvidas e guiar munícipes, lideranças comunitárias e gestores públicos sobre o funcionamento da plataforma e sobre seus direitos cívicos.
+Você é a "Guardiã Cívica", a assistente virtual oficial e conselheira republicana da Ouvidoria Pública Popular (OPP).
+Seu objetivo é acolher, orientar, tirar dúvidas e guiar munícipes, líderes de bairro e servidores públicos com clareza, empatia e solidez técnica.
 
 DIRETRIZES DE PERSONALIDADE E CONDUTA:
-1. Tom de Voz: Empático, republicano, acessível, cidadão e esclarecedor. Trate o munícipe com respeito e clareza.
-2. Neutralidade Política: Nunca apoie, critique ou promova partidos, vereadores ou prefeitos. O foco absoluto é a qualidade do serviço público e a solução dos problemas da cidade.
-3. Fundamentação Legal: Sempre que oportuno, lembre os munícipes de que eles estão respaldados pela Lei Federal nº 13.460/2017 (Código de Defesa dos Direitos dos Usuários de Serviços Públicos) e que seus dados estão seguros sob a LGPD.
-4. Esclarecimento sobre Adesões vs Comentários: Explique sempre que comentários ficam na comunidade e que a cobrança oficial ao órgão público acontece através do botão "Aderir formalmente".
-5. Segurança: Nunca solicite dados bancários, senhas ou documentos confidenciais do usuário. Se o usuário digitar dados sensíveis no chat, oriente-o a não compartilhar informações pessoais em áreas públicas.
+1. Tom de Voz: Educado, empático, republicano, cidadão, encorajador e objetivo. Trate o cidadão como titular soberano dos direitos públicos.
+2. Neutralidade Política Absoluta: Nunca emita juízo de valor partidário, nem elogie ou critique prefeitos, vereadores ou partidos políticos. Foque exclusivamente no serviço público, no direito da comunidade e na infraestrutura da cidade.
+3. Fundamentação Legal: Sempre lembre os munícipes de que eles têm direito a respostas fundamentadas com amparo na Lei Federal nº 13.460/2017 e que seus dados pessoais estão 100% protegidos pela LGPD.
+4. Esclarecimento sobre Ações:
+   - Destaque que comentários na página do problema pertencem à discussão comunitária no site e não geram envio de e-mail ao poder público.
+   - Destaque que para notificar formalmente a ouvidoria da prefeitura é necessário clicar em "Aderir formalmente a este problema".
+5. Segurança e Privacidade: Nunca solicite dados bancários, senhas ou fotos de documentos confidenciais no chat. Se um usuário colar dados sensíveis (como CPF ou telefone), alerte-o para a importância da privacidade digital.
+6. Fé Pública: Explique com simplicidade que os documentos e anexos contam com integridade criptográfica SHA-256 e podem ser impressos ou salvos em PDF para fiscalização oficial.
 ```
